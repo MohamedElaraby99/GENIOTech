@@ -23,6 +23,14 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crm.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Add nl2br filter for templates
+@app.template_filter('nl2br')
+def nl2br(value):
+    """Convert newlines to <br> tags"""
+    if value:
+        return value.replace('\n', '<br>\n')
+    return value
+
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -799,6 +807,72 @@ def add_ticket():
     customers = Customer.query.all()
     agents = User.query.filter_by(role='customer_service').all()
     return render_template('add_ticket.html', customers=customers, agents=agents)
+
+@app.route('/tickets/<int:ticket_id>')
+@login_required
+def ticket_detail(ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    # Check permissions
+    if current_user.role == 'customer_service' and ticket.assigned_to_id != current_user.id:
+        flash('Access denied. You can only view tickets assigned to you.', 'error')
+        return redirect(url_for('tickets'))
+    
+    return render_template('ticket_detail.html', ticket=ticket)
+
+@app.route('/tickets/<int:ticket_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_ticket(ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    # Check permissions
+    if current_user.role == 'customer_service' and ticket.assigned_to_id != current_user.id:
+        flash('Access denied. You can only edit tickets assigned to you.', 'error')
+        return redirect(url_for('tickets'))
+    
+    if request.method == 'POST':
+        ticket.title = request.form['title']
+        ticket.description = request.form['description']
+        ticket.priority = request.form['priority']
+        ticket.status = request.form['status']
+        
+        # Only admins can reassign tickets
+        if current_user.role == 'admin':
+            ticket.assigned_to_id = request.form.get('assigned_to_id') or None
+        
+        # Update resolution info if status is resolved
+        if ticket.status == 'resolved' and not ticket.resolved_at:
+            ticket.resolved_at = datetime.utcnow()
+            ticket.resolution_notes = request.form.get('resolution_notes', '')
+        elif ticket.status != 'resolved':
+            ticket.resolved_at = None
+            ticket.resolution_notes = None
+        
+        db.session.commit()
+        flash('Ticket updated successfully', 'success')
+        return redirect(url_for('ticket_detail', ticket_id=ticket.id))
+    
+    customers = Customer.query.all()
+    agents = User.query.filter_by(role='customer_service').all()
+    return render_template('edit_ticket.html', ticket=ticket, customers=customers, agents=agents)
+
+@app.route('/tickets/<int:ticket_id>/resolve', methods=['POST'])
+@login_required
+def resolve_ticket(ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    # Check permissions
+    if current_user.role == 'customer_service' and ticket.assigned_to_id != current_user.id:
+        flash('Access denied. You can only resolve tickets assigned to you.', 'error')
+        return redirect(url_for('tickets'))
+    
+    ticket.status = 'resolved'
+    ticket.resolved_at = datetime.utcnow()
+    ticket.resolution_notes = request.form.get('resolution_notes', '')
+    
+    db.session.commit()
+    flash('Ticket marked as resolved', 'success')
+    return redirect(url_for('tickets'))
 
 # Session/Schedule Management Routes
 @app.route('/sessions')

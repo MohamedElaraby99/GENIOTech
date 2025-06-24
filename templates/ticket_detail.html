@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Ticket #{{ ticket.id }} - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-ticket-alt"></i> Ticket #{{ ticket.id }}</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('tickets') }}">Tickets</a></li>
+                            <li class="breadcrumb-item active">Ticket #{{ ticket.id }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('edit_ticket', ticket_id=ticket.id) }}" class="btn btn-outline-info">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    {% if ticket.status != 'resolved' %}
+                    <button type="button" class="btn btn-outline-success" data-ticket-id="{{ ticket.id }}"
+                        data-ticket-title="{{ ticket.title }}" onclick="showResolveModal(this)">
+                        <i class="fas fa-check"></i> Mark as Resolved
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i> Ticket Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Title:</strong></div>
+                        <div class="col-sm-9">{{ ticket.title }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Description:</strong></div>
+                        <div class="col-sm-9">
+                            <div class="p-3 bg-light rounded">
+                                {{ ticket.description|nl2br|safe }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Customer:</strong></div>
+                        <div class="col-sm-9">
+                            <a href="{{ url_for('customer_detail', customer_id=ticket.customer.id) }}"
+                                class="text-decoration-none">
+                                {{ ticket.customer.first_name }} {{ ticket.customer.last_name }}
+                            </a>
+                            <br><small class="text-muted">{{ ticket.customer.email }}</small>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Assigned To:</strong></div>
+                        <div class="col-sm-9">
+                            {% if ticket.assigned_to %}
+                            {{ ticket.assigned_to.first_name }} {{ ticket.assigned_to.last_name }}
+                            <br><small class="text-muted">{{ ticket.assigned_to.email }}</small>
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Status:</strong></div>
+                        <div class="col-sm-9">
+                            <span
+                                class="badge bg-{{ 'warning' if ticket.status == 'open' else 'info' if ticket.status == 'in_progress' else 'success' if ticket.status == 'resolved' else 'secondary' }} fs-6">
+                                {{ ticket.status.replace('_', ' ').title() }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Priority:</strong></div>
+                        <div class="col-sm-9">
+                            <span
+                                class="badge bg-{{ 'danger' if ticket.priority == 'urgent' else 'warning' if ticket.priority == 'high' else 'info' if ticket.priority == 'medium' else 'secondary' }} fs-6">
+                                {{ ticket.priority.title() }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Created:</strong></div>
+                        <div class="col-sm-9">{{ ticket.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                    </div>
+                    {% if ticket.resolved_at %}
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Resolved:</strong></div>
+                        <div class="col-sm-9">{{ ticket.resolved_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                    </div>
+                    {% endif %}
+                    {% if ticket.resolution_notes %}
+                    <div class="row mb-3">
+                        <div class="col-sm-3"><strong>Resolution Notes:</strong></div>
+                        <div class="col-sm-9">
+                            <div class="p-3 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
+                                {{ ticket.resolution_notes|nl2br|safe }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-clock"></i> Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Ticket Created</div>
+                                <div class="timeline-text">
+                                    Ticket was created by system
+                                </div>
+                                <div class="timeline-time text-muted">
+                                    {{ ticket.created_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if ticket.assigned_to %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Ticket Assigned</div>
+                                <div class="timeline-text">
+                                    Assigned to {{ ticket.assigned_to.first_name }} {{ ticket.assigned_to.last_name }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if ticket.resolved_at %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Ticket Resolved</div>
+                                <div class="timeline-text">
+                                    Ticket was marked as resolved
+                                </div>
+                                <div class="timeline-time text-muted">
+                                    {{ ticket.resolved_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if ticket.status != 'resolved' %}
+            <div class="card shadow mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-tools"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('resolve_ticket', ticket_id=ticket.id) }}">
+                        <div class="mb-3">
+                            <label for="resolution_notes" class="form-label">Resolution Notes:</label>
+                            <textarea class="form-control" id="resolution_notes" name="resolution_notes" rows="3"
+                                placeholder="Enter resolution details..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-check"></i> Mark as Resolved
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modern Resolve Ticket Modal -->
+<div class="modal fade" id="resolveTicketModal" tabindex="-1" aria-labelledby="resolveTicketModalLabel"
+    aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="resolveTicketModalLabel">
+                    <i class="fas fa-check-circle me-2"></i>Resolve Ticket
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-question-circle text-success fa-3x"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="mb-1">Are you sure you want to resolve this ticket?</h6>
+                        <p class="mb-0 text-muted" id="ticketTitleText">This action will mark the ticket as resolved.
+                        </p>
+                    </div>
+                </div>
+                <form id="resolveTicketForm" method="POST">
+                    <div class="mb-3">
+                        <label for="modalResolutionNotes" class="form-label">
+                            <i class="fas fa-comment-alt me-1"></i>Resolution Notes (Optional)
+                        </label>
+                        <textarea class="form-control" id="modalResolutionNotes" name="resolution_notes" rows="3"
+                            placeholder="Enter details about how this ticket was resolved..."></textarea>
+                        <div class="form-text">These notes will help with future reference and customer communication.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="confirmResolveBtn">
+                    <i class="fas fa-check me-1"></i>Resolve Ticket
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Modern resolve ticket function
+    function showResolveModal(button) {
+        const ticketId = button.getAttribute('data-ticket-id');
+        const ticketTitle = button.getAttribute('data-ticket-title');
+
+        // Update modal content
+        document.getElementById('ticketTitleText').textContent = `Ticket: ${ticketTitle}`;
+        document.getElementById('resolveTicketForm').action = `/tickets/${ticketId}/resolve`;
+        document.getElementById('modalResolutionNotes').value = '';
+
+        // Show the modal with options
+        const modalElement = document.getElementById('resolveTicketModal');
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: true,    // Allow clicking outside to close
+            keyboard: true,    // Allow ESC key to close
+            focus: true        // Focus on modal when opened
+        });
+        modal.show();
+
+        // Add click outside handler for better UX
+        modalElement.addEventListener('click', function (event) {
+            if (event.target === this) {
+                modal.hide();
+            }
+        });
+    }
+
+    // Handle confirm resolve button
+    document.getElementById('confirmResolveBtn').addEventListener('click', function () {
+        const form = document.getElementById('resolveTicketForm');
+        const notesValue = document.getElementById('modalResolutionNotes').value;
+
+        // Create hidden input for notes if not empty
+        if (notesValue.trim()) {
+            const notesInput = document.createElement('input');
+            notesInput.type = 'hidden';
+            notesInput.name = 'resolution_notes';
+            notesInput.value = notesValue;
+            form.appendChild(notesInput);
+        }
+
+        // Add loading state
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Resolving...';
+        this.disabled = true;
+
+        // Submit the form
+        form.submit();
+    });
+</script>
+{% endblock %}

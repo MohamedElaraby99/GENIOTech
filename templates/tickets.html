@@ -149,16 +149,18 @@
                                     <td>{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <button type="button" class="btn btn-outline-primary btn-sm"
-                                                title="View Details">
+                                            <a href="{{ url_for('ticket_detail', ticket_id=ticket.id) }}"
+                                                class="btn btn-outline-primary btn-sm" title="View Details">
                                                 <i class="fas fa-eye"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-info btn-sm" title="Edit">
+                                            </a>
+                                            <a href="{{ url_for('edit_ticket', ticket_id=ticket.id) }}"
+                                                class="btn btn-outline-info btn-sm" title="Edit">
                                                 <i class="fas fa-edit"></i>
-                                            </button>
+                                            </a>
                                             {% if ticket.status != 'resolved' %}
-                                            <button type="button" class="btn btn-outline-success btn-sm"
-                                                title="Resolve">
+                                            <button type="button" class="btn btn-outline-success btn-sm" title="Resolve"
+                                                data-ticket-id="{{ ticket.id }}" data-ticket-title="{{ ticket.title }}"
+                                                onclick="showResolveModal(this)">
                                                 <i class="fas fa-check"></i>
                                             </button>
                                             {% endif %}
@@ -170,6 +172,53 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modern Resolve Ticket Modal -->
+<div class="modal fade" id="resolveTicketModal" tabindex="-1" aria-labelledby="resolveTicketModalLabel"
+    aria-hidden="true" data-bs-backdrop="true" data-bs-keyboard="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="resolveTicketModalLabel">
+                    <i class="fas fa-check-circle me-2"></i>Resolve Ticket
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-question-circle text-success fa-3x"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="mb-1">Are you sure you want to resolve this ticket?</h6>
+                        <p class="mb-0 text-muted" id="ticketTitleText">This action will mark the ticket as resolved.
+                        </p>
+                    </div>
+                </div>
+                <form id="resolveTicketForm" method="POST">
+                    <div class="mb-3">
+                        <label for="modalResolutionNotes" class="form-label">
+                            <i class="fas fa-comment-alt me-1"></i>Resolution Notes (Optional)
+                        </label>
+                        <textarea class="form-control" id="modalResolutionNotes" name="resolution_notes" rows="3"
+                            placeholder="Enter details about how this ticket was resolved..."></textarea>
+                        <div class="form-text">These notes will help with future reference and customer communication.
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="confirmResolveBtn">
+                    <i class="fas fa-check me-1"></i>Resolve Ticket
+                </button>
             </div>
         </div>
     </div>
@@ -204,5 +253,54 @@
             row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
         }
     }
+
+    // Modern resolve ticket function
+    function showResolveModal(button) {
+        const ticketId = button.getAttribute('data-ticket-id');
+        const ticketTitle = button.getAttribute('data-ticket-title');
+
+        // Update modal content
+        document.getElementById('ticketTitleText').textContent = `Ticket: ${ticketTitle}`;
+        document.getElementById('resolveTicketForm').action = `/tickets/${ticketId}/resolve`;
+        document.getElementById('modalResolutionNotes').value = '';
+
+        // Show the modal with options
+        const modalElement = document.getElementById('resolveTicketModal');
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: true,    // Allow clicking outside to close
+            keyboard: true,    // Allow ESC key to close
+            focus: true        // Focus on modal when opened
+        });
+        modal.show();
+
+        // Add click outside handler for better UX
+        modalElement.addEventListener('click', function (event) {
+            if (event.target === this) {
+                modal.hide();
+            }
+        });
+    }
+
+    // Handle confirm resolve button
+    document.getElementById('confirmResolveBtn').addEventListener('click', function () {
+        const form = document.getElementById('resolveTicketForm');
+        const notesValue = document.getElementById('modalResolutionNotes').value;
+
+        // Create hidden input for notes if not empty
+        if (notesValue.trim()) {
+            const notesInput = document.createElement('input');
+            notesInput.type = 'hidden';
+            notesInput.name = 'resolution_notes';
+            notesInput.value = notesValue;
+            form.appendChild(notesInput);
+        }
+
+        // Add loading state
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Resolving...';
+        this.disabled = true;
+
+        // Submit the form
+        form.submit();
+    });
 </script>
 {% endblock %}

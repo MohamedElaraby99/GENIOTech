@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Ticket #{{ ticket.id }} - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-edit"></i> Edit Ticket #{{ ticket.id }}</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('tickets') }}">Tickets</a></li>
+                            <li class="breadcrumb-item"><a
+                                    href="{{ url_for('ticket_detail', ticket_id=ticket.id) }}">Ticket #{{ ticket.id
+                                    }}</a></li>
+                            <li class="breadcrumb-item active">Edit</li>
+                        </ol>
+                    </nav>
+                </div>
+                <a href="{{ url_for('ticket_detail', ticket_id=ticket.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Details
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-ticket-alt"></i> Ticket Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="title" name="title"
+                                    value="{{ ticket.title }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="description" class="form-label">Description <span
+                                        class="text-danger">*</span></label>
+                                <textarea class="form-control" id="description" name="description" rows="5"
+                                    required>{{ ticket.description }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="open" {% if ticket.status=='open' %}selected{% endif %}>Open</option>
+                                    <option value="in_progress" {% if ticket.status=='in_progress' %}selected{% endif
+                                        %}>In Progress</option>
+                                    <option value="resolved" {% if ticket.status=='resolved' %}selected{% endif %}>
+                                        Resolved</option>
+                                    <option value="closed" {% if ticket.status=='closed' %}selected{% endif %}>Closed
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="low" {% if ticket.priority=='low' %}selected{% endif %}>Low</option>
+                                    <option value="medium" {% if ticket.priority=='medium' %}selected{% endif %}>Medium
+                                    </option>
+                                    <option value="high" {% if ticket.priority=='high' %}selected{% endif %}>High
+                                    </option>
+                                    <option value="urgent" {% if ticket.priority=='urgent' %}selected{% endif %}>Urgent
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="customer_id" class="form-label">Customer</label>
+                                <select class="form-select" id="customer_id" name="customer_id" disabled>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}" {% if customer.id==ticket.customer_id %}selected{%
+                                        endif %}>
+                                        {{ customer.first_name }} {{ customer.last_name }} - {{ customer.email }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Customer cannot be changed after ticket
+                                    creation</small>
+                            </div>
+                            {% if current_user.role == 'admin' %}
+                            <div class="col-md-6 mb-3">
+                                <label for="assigned_to_id" class="form-label">Assigned To</label>
+                                <select class="form-select" id="assigned_to_id" name="assigned_to_id">
+                                    <option value="">Unassigned</option>
+                                    {% for agent in agents %}
+                                    <option value="{{ agent.id }}" {% if agent.id==ticket.assigned_to_id %}selected{%
+                                        endif %}>
+                                        {{ agent.first_name }} {{ agent.last_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% else %}
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Assigned To</label>
+                                <input type="text" class="form-control"
+                                    value="{% if ticket.assigned_to %}{{ ticket.assigned_to.first_name }} {{ ticket.assigned_to.last_name }}{% else %}Unassigned{% endif %}"
+                                    disabled>
+                                <small class="form-text text-muted">Only admins can reassign tickets</small>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div id="resolutionSection" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="resolution_notes" class="form-label">Resolution Notes</label>
+                                    <textarea class="form-control" id="resolution_notes" name="resolution_notes"
+                                        rows="3"
+                                        placeholder="Enter resolution details...">{{ ticket.resolution_notes or '' }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('ticket_detail', ticket_id=ticket.id) }}"
+                                class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle"></i> Ticket Info
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Ticket ID:</strong><br>
+                        <span class="text-muted">#{{ ticket.id }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Created:</strong><br>
+                        <span class="text-muted">{{ ticket.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    </div>
+                    {% if ticket.resolved_at %}
+                    <div class="mb-3">
+                        <strong>Resolved:</strong><br>
+                        <span class="text-muted">{{ ticket.resolved_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <strong>Customer:</strong><br>
+                        <a href="{{ url_for('customer_detail', customer_id=ticket.customer.id) }}"
+                            class="text-decoration-none">
+                            {{ ticket.customer.first_name }} {{ ticket.customer.last_name }}
+                        </a><br>
+                        <small class="text-muted">{{ ticket.customer.email }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb"></i> Tips
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled small">
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Be specific in your ticket updates
+                        </li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Update status to reflect current
+                            progress</li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Add resolution notes when resolving
+                        </li>
+                        <li class="mb-2"><i class="fas fa-check text-success"></i> Contact customer if more info is
+                            needed</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Show/hide resolution section based on status
+    document.getElementById('status').addEventListener('change', function () {
+        const resolutionSection = document.getElementById('resolutionSection');
+        if (this.value === 'resolved') {
+            resolutionSection.style.display = 'block';
+        } else {
+            resolutionSection.style.display = 'none';
+        }
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        const statusSelect = document.getElementById('status');
+        const resolutionSection = document.getElementById('resolutionSection');
+        if (statusSelect.value === 'resolved') {
+            resolutionSection.style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}
