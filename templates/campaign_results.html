@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Campaign Results - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-bullhorn"></i> WhatsApp Campaign Results</h2>
+                    <p class="text-muted">Click on WhatsApp links to send personalized messages</p>
+                </div>
+                <a href="{{ url_for('customers') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Customers
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-paper-plane"></i> Ready to Send Messages ({{ whatsapp_links|length }}
+                        recipients)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if whatsapp_links %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Instructions:</strong> Click on each WhatsApp link below to open WhatsApp Web and send
+                        the personalized message to each customer.
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="d-flex gap-2 mb-3">
+                                <button type="button" class="btn btn-success" id="openAllLinks">
+                                    <i class="fab fa-whatsapp"></i> Open All WhatsApp Links
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="copyAllMessages()">
+                                    <i class="fas fa-copy"></i> Copy All Messages
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Phone</th>
+                                    <th>Personalized Message</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for link in whatsapp_links %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ link.customer.first_name }} {{ link.customer.last_name
+                                            }}</strong><br>
+                                        <small class="text-muted">{{ link.customer.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ link.customer.phone }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="message-preview"
+                                            style="max-width: 300px; max-height: 100px; overflow-y: auto;">
+                                            <small>{{ link.message }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ link.url }}" target="_blank"
+                                                class="btn btn-success whatsapp-link" title="Send WhatsApp Message">
+                                                <i class="fab fa-whatsapp"></i> WhatsApp
+                                            </a>
+                                            <a href="tel:{{ link.customer.phone }}" class="btn btn-info"
+                                                title="Call Customer">
+                                                <i class="fas fa-phone"></i> Call
+                                            </a>
+                                            <button type="button" class="btn btn-outline-secondary"
+                                                onclick="copyMessage('{{ link.message|e }}')" title="Copy Message">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        No customers with valid phone numbers were found in your selection.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Open all WhatsApp links with a delay
+    document.getElementById('openAllLinks').addEventListener('click', function () {
+        const links = document.querySelectorAll('.whatsapp-link');
+        let delay = 0;
+
+        if (confirm(`This will open ${links.length} WhatsApp tabs. Continue?`)) {
+            links.forEach((link, index) => {
+                setTimeout(() => {
+                    window.open(link.href, '_blank');
+                }, delay);
+                delay += 1000; // 1 second delay between opens
+            });
+        }
+    });
+
+    // Copy individual message
+    function copyMessage(message) {
+        navigator.clipboard.writeText(message).then(function () {
+            // Show brief success feedback
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-outline-secondary');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-secondary');
+            }, 1000);
+        });
+    }
+
+    // Copy all messages
+    function copyAllMessages() {
+        const messages = [
+            {% for link in whatsapp_links %}
+    "{{ link.customer.first_name }} {{ link.customer.last_name }} ({{ link.customer.phone }}): {{ link.message|e }}"{% if not loop.last %}, {% endif %}
+    {% endfor %}
+        ];
+
+    const allMessages = messages.join('\n\n');
+    navigator.clipboard.writeText(allMessages).then(function () {
+        alert('All messages copied to clipboard!');
+    });
+    }
+</script>
+{% endblock %}

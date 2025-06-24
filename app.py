@@ -96,6 +96,44 @@ class Note(db.Model):
     customer = db.relationship('Customer', backref='notes_list')
     created_by = db.relationship('User', backref='created_notes')
 
+# New Course Management Models
+class CourseCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class GeneralCourse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('course_category.id'))
+    instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    duration_hours = db.Column(db.Integer, default=10)  # Total course duration
+    price = db.Column(db.Float, default=0.0)
+    max_students = db.Column(db.Integer, default=20)
+    status = db.Column(db.String(20), default='active')  # active, inactive, archived
+    start_date = db.Column(db.DateTime)
+    end_date = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    category = db.relationship('CourseCategory', backref='courses')
+    instructor = db.relationship('User', backref='taught_courses')
+
+class Enrollment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey('general_course.id'), nullable=False)
+    enrollment_date = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='active')  # active, completed, dropped, suspended
+    progress = db.Column(db.Float, default=0.0)  # Percentage completion
+    final_grade = db.Column(db.String(10))  # A, B, C, D, F
+    completion_date = db.Column(db.DateTime)
+    notes = db.Column(db.Text)
+    
+    customer = db.relationship('Customer', backref='enrollments')
+    course = db.relationship('GeneralCourse', backref='enrollments')
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -345,6 +383,115 @@ def add_customer():
     instructors = User.query.filter_by(role='instructor').all()
     return render_template('add_customer.html', instructors=instructors)
 
+@app.route('/customers/<int:customer_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_customer(customer_id):
+    customer = Customer.query.get_or_404(customer_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and customer.assigned_instructor_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('customers'))
+    
+    if request.method == 'POST':
+        customer.first_name = request.form['first_name']
+        customer.last_name = request.form['last_name']
+        customer.email = request.form['email']
+        customer.phone = request.form.get('phone', '')
+        customer.status = request.form['status']
+        
+        # Only admins and customer service can change instructor assignment
+        if current_user.role in ['admin', 'customer_service']:
+            customer.assigned_instructor_id = request.form.get('assigned_instructor_id') or None
+        
+        try:
+            db.session.commit()
+            flash('Customer updated successfully', 'success')
+            return redirect(url_for('customers'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating customer: Email may already exist', 'error')
+    
+    instructors = User.query.filter_by(role='instructor').all()
+    return render_template('edit_customer.html', customer=customer, instructors=instructors)
+
+@app.route('/customers/<int:customer_id>/add_note', methods=['POST'])
+@login_required
+def add_customer_note(customer_id):
+    customer = Customer.query.get_or_404(customer_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and customer.assigned_instructor_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('customers'))
+    
+    content = request.form.get('note_content')
+    is_internal = 'is_internal' in request.form
+    
+    if content:
+        note = Note(
+            content=content,
+            customer_id=customer_id,
+            created_by_id=current_user.id,
+            is_internal=is_internal
+        )
+        db.session.add(note)
+        db.session.commit()
+        flash('Note added successfully', 'success')
+    else:
+        flash('Note content cannot be empty', 'error')
+    
+    return redirect(url_for('customer_detail', customer_id=customer_id))
+
+@app.route('/customers/campaign', methods=['POST'])
+@login_required
+def send_whatsapp_campaign():
+    selected_customers = request.form.getlist('selected_customers')
+    message_template = request.form.get('message_template', '')
+    
+    if not selected_customers:
+        flash('Please select at least one customer', 'error')
+        return redirect(url_for('customers'))
+    
+    if not message_template:
+        flash('Please enter a message template', 'error')
+        return redirect(url_for('customers'))
+    
+    # Get selected customers
+    if current_user.role == 'instructor':
+        customers = Customer.query.filter(
+            Customer.id.in_(selected_customers),
+            Customer.assigned_instructor_id == current_user.id
+        ).all()
+    else:
+        customers = Customer.query.filter(Customer.id.in_(selected_customers)).all()
+    
+    # Generate WhatsApp links
+    whatsapp_links = []
+    for customer in customers:
+        if customer.phone:
+            # Replace template variables
+            personalized_message = message_template.replace('{name}', f"{customer.first_name} {customer.last_name}")
+            personalized_message = personalized_message.replace('{first_name}', customer.first_name)
+            personalized_message = personalized_message.replace('{last_name}', customer.last_name)
+            
+            # Clean phone number (remove spaces, dashes, etc.)
+            clean_phone = ''.join(filter(str.isdigit, customer.phone))
+            
+            # Create WhatsApp Web link
+            whatsapp_url = f"https://wa.me/{clean_phone}?text={personalized_message}"
+            whatsapp_links.append({
+                'customer': customer,
+                'url': whatsapp_url,
+                'message': personalized_message
+            })
+    
+    # For now, we'll return the links to the user to open manually
+    # In a real application, you might want to integrate with WhatsApp Business API
+    return render_template('campaign_results.html', 
+                         whatsapp_links=whatsapp_links, 
+                         message_template=message_template)
+
 @app.route('/customers/<int:customer_id>')
 @login_required
 def customer_detail(customer_id):
@@ -455,6 +602,208 @@ def api_dashboard_stats():
         }
     
     return jsonify(stats)
+
+# Course Management Routes
+@app.route('/courses')
+@login_required
+def courses():
+    if current_user.role == 'instructor':
+        courses = GeneralCourse.query.filter_by(instructor_id=current_user.id).all()
+    else:
+        courses = GeneralCourse.query.all()
+    
+    categories = CourseCategory.query.all()
+    return render_template('courses.html', courses=courses, categories=categories)
+
+@app.route('/courses/add', methods=['GET', 'POST'])
+@login_required
+def add_course():
+    if request.method == 'POST':
+        course = GeneralCourse(
+            title=request.form['title'],
+            description=request.form['description'],
+            category_id=request.form.get('category_id') or None,
+            instructor_id=request.form['instructor_id'],
+            duration_hours=int(request.form['duration_hours']),
+            price=float(request.form['price']),
+            max_students=int(request.form['max_students']),
+            start_date=datetime.strptime(request.form['start_date'], '%Y-%m-%d') if request.form['start_date'] else None,
+            end_date=datetime.strptime(request.form['end_date'], '%Y-%m-%d') if request.form['end_date'] else None
+        )
+        db.session.add(course)
+        db.session.commit()
+        flash('Course created successfully', 'success')
+        return redirect(url_for('courses'))
+    
+    categories = CourseCategory.query.all()
+    instructors = User.query.filter_by(role='instructor').all()
+    return render_template('add_course.html', categories=categories, instructors=instructors)
+
+@app.route('/courses/<int:course_id>')
+@login_required
+def course_detail(course_id):
+    course = GeneralCourse.query.get_or_404(course_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and course.instructor_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('courses'))
+    
+    enrollments = Enrollment.query.filter_by(course_id=course_id).all()
+    
+    # Get customers not already enrolled in this course
+    enrolled_customer_ids = [e.customer_id for e in enrollments if e.status == 'active']
+    available_customers = Customer.query.filter(~Customer.id.in_(enrolled_customer_ids)).all()
+    
+    return render_template('course_detail.html', course=course, enrollments=enrollments, available_customers=available_customers)
+
+@app.route('/courses/<int:course_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_course(course_id):
+    course = GeneralCourse.query.get_or_404(course_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and course.instructor_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('courses'))
+    
+    if request.method == 'POST':
+        course.title = request.form['title']
+        course.description = request.form['description']
+        course.category_id = request.form.get('category_id') or None
+        course.duration_hours = int(request.form['duration_hours'])
+        course.price = float(request.form['price'])
+        course.max_students = int(request.form['max_students'])
+        course.start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d') if request.form['start_date'] else None
+        course.end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d') if request.form['end_date'] else None
+        course.status = request.form['status']
+        
+        # Only admins can change instructor
+        if current_user.role == 'admin':
+            course.instructor_id = request.form['instructor_id']
+        
+        db.session.commit()
+        flash('Course updated successfully', 'success')
+        return redirect(url_for('course_detail', course_id=course.id))
+    
+    categories = CourseCategory.query.all()
+    instructors = User.query.filter_by(role='instructor').all()
+    return render_template('edit_course.html', course=course, categories=categories, instructors=instructors)
+
+@app.route('/courses/<int:course_id>/enroll', methods=['POST'])
+@login_required
+def enroll_student(course_id):
+    course = GeneralCourse.query.get_or_404(course_id)
+    customer_id = request.form.get('customer_id')
+    
+    if not customer_id:
+        flash('Please select a student', 'error')
+        return redirect(url_for('course_detail', course_id=course_id))
+    
+    # Check if already enrolled
+    existing_enrollment = Enrollment.query.filter_by(
+        customer_id=customer_id, 
+        course_id=course_id, 
+        status='active'
+    ).first()
+    
+    if existing_enrollment:
+        flash('Student is already enrolled in this course', 'error')
+        return redirect(url_for('course_detail', course_id=course_id))
+    
+    # Check if course is full
+    current_enrollments = Enrollment.query.filter_by(course_id=course_id, status='active').count()
+    if current_enrollments >= course.max_students:
+        flash('Course is full', 'error')
+        return redirect(url_for('course_detail', course_id=course_id))
+    
+    enrollment = Enrollment(
+        customer_id=customer_id,
+        course_id=course_id
+    )
+    db.session.add(enrollment)
+    db.session.commit()
+    
+    flash('Student enrolled successfully', 'success')
+    return redirect(url_for('course_detail', course_id=course_id))
+
+@app.route('/enrollments/<int:enrollment_id>/update', methods=['POST'])
+@login_required
+def update_enrollment(enrollment_id):
+    enrollment = Enrollment.query.get_or_404(enrollment_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and enrollment.course.instructor_id != current_user.id:
+        flash('Access denied', 'error')
+        return redirect(url_for('courses'))
+    
+    enrollment.status = request.form.get('status', enrollment.status)
+    enrollment.progress = float(request.form.get('progress', enrollment.progress))
+    enrollment.final_grade = request.form.get('final_grade', enrollment.final_grade)
+    enrollment.notes = request.form.get('notes', enrollment.notes)
+    
+    if enrollment.status == 'completed' and not enrollment.completion_date:
+        enrollment.completion_date = datetime.utcnow()
+    
+    db.session.commit()
+    flash('Enrollment updated successfully', 'success')
+    return redirect(url_for('course_detail', course_id=enrollment.course_id))
+
+# Course Categories Management
+@app.route('/admin/categories')
+@admin_required
+def admin_categories():
+    categories = CourseCategory.query.all()
+    return render_template('admin/categories.html', categories=categories)
+
+@app.route('/admin/categories/add', methods=['POST'])
+@admin_required
+def admin_add_category():
+    name = request.form.get('name')
+    description = request.form.get('description')
+    
+    if name:
+        category = CourseCategory(name=name, description=description)
+        db.session.add(category)
+        db.session.commit()
+        flash('Category created successfully', 'success')
+    else:
+        flash('Category name is required', 'error')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin/categories/<int:category_id>/edit', methods=['POST'])
+@admin_required
+def admin_edit_category(category_id):
+    category = CourseCategory.query.get_or_404(category_id)
+    
+    name = request.form.get('name')
+    description = request.form.get('description')
+    
+    if name:
+        category.name = name
+        category.description = description
+        db.session.commit()
+        flash('Category updated successfully', 'success')
+    else:
+        flash('Category name is required', 'error')
+    
+    return redirect(url_for('admin_categories'))
+
+@app.route('/admin/categories/<int:category_id>/delete', methods=['POST'])
+@admin_required
+def admin_delete_category(category_id):
+    category = CourseCategory.query.get_or_404(category_id)
+    
+    # Check if category has courses
+    if category.courses:
+        flash('Cannot delete category with existing courses', 'error')
+    else:
+        db.session.delete(category)
+        db.session.commit()
+        flash('Category deleted successfully', 'success')
+    
+    return redirect(url_for('admin_categories'))
 
 if __name__ == '__main__':
     with app.app_context():

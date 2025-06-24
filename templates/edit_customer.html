@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Customer - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-user-edit"></i> Edit Customer</h2>
+                    <p class="text-muted">Update customer information</p>
+                </div>
+                <a href="{{ url_for('customers') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Customers
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-user"></i> Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="first_name" class="form-label">First Name <span
+                                            class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name"
+                                        value="{{ customer.first_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="last_name" class="form-label">Last Name <span
+                                            class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name"
+                                        value="{{ customer.last_name }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email <span
+                                            class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="email" name="email"
+                                        value="{{ customer.email }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone"
+                                        value="{{ customer.phone or '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Status <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        <option value="active" {{ 'selected' if customer.status=='active' else '' }}>
+                                            Active</option>
+                                        <option value="inactive" {{ 'selected' if customer.status=='inactive' else ''
+                                            }}>Inactive</option>
+                                        <option value="needs_follow_up" {{ 'selected' if
+                                            customer.status=='needs_follow_up' else '' }}>Needs Follow-up</option>
+                                        <option value="no_show" {{ 'selected' if customer.status=='no_show' else '' }}>
+                                            No Show</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {% if current_user.role in ['admin', 'customer_service'] %}
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="assigned_instructor_id" class="form-label">Assigned Instructor</label>
+                                    <select class="form-select" id="assigned_instructor_id"
+                                        name="assigned_instructor_id">
+                                        <option value="">Select Instructor</option>
+                                        {% for instructor in instructors %}
+                                        <option value="{{ instructor.id }}" {{ 'selected' if
+                                            customer.assigned_instructor_id==instructor.id else '' }}>
+                                            {{ instructor.first_name }} {{ instructor.last_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('customers') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Customer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

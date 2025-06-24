@@ -80,7 +80,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('dashboard') }}">
-                <i class="fas fa-users"></i> CRM System
+                <i class="fas fa-users"></i> GENIO Tech
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -102,6 +102,8 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">User Management</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_categories') }}">Course Categories</a>
+                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_reports') }}">Reports & Analytics</a>
                             </li>
                         </ul>
@@ -111,6 +113,12 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('customers') }}">
                             <i class="fas fa-user-friends"></i> Customers
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('courses') }}">
+                            <i class="fas fa-graduation-cap"></i> Courses
                         </a>
                     </li>
 
