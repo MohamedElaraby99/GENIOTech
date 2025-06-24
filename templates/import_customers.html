@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}استيراد العملاء - نظام إدارة العملاء{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-file-excel"></i> استيراد العملاء من ملف Excel</h2>
+                    <p class="text-muted">قم برفع ملف Excel لإضافة عدة عملاء دفعة واحدة</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('customers') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> العودة لقائمة العملاء
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upload Form -->
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-upload"></i> رفع ملف Excel
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form action="{{ url_for('import_customers') }}" method="POST" enctype="multipart/form-data"
+                        id="importForm">
+                        <div class="mb-4">
+                            <label for="excel_file" class="form-label">
+                                <i class="fas fa-file-excel"></i> اختر ملف Excel <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" class="form-control" id="excel_file" name="excel_file"
+                                accept=".xlsx,.xls" required>
+                            <div class="form-text">
+                                يُقبل ملفات Excel فقط (.xlsx أو .xls)
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> معلومات مهمة:</h6>
+                            <ul class="mb-0">
+                                <li>يجب أن يحتوي الملف على الأعمدة التالية <strong>بالضبط</strong>:
+                                    <code>first_name</code>, <code>last_name</code>, <code>email</code>
+                                </li>
+                                <li>أسماء الأعمدة يجب أن تكون باللغة الإنجليزية بدون مسافات</li>
+                                <li>البريد الإلكتروني يجب أن يكون فريد لكل عميل</li>
+                                <li>إذا كان العميل موجود مسبقاً، سيتم تخطيه</li>
+                                <li><strong>يُنصح بشدة</strong> بتحميل النموذج أدناه واستخدامه مباشرة</li>
+                            </ul>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <h6><i class="fas fa-exclamation-triangle"></i> تحذير:</h6>
+                            <p class="mb-1">تأكد من أن:</p>
+                            <ul class="mb-0">
+                                <li>الصف الأول يحتوي على أسماء الأعمدة <strong>فقط</strong></li>
+                                <li>لا توجد مسافات إضافية في أسماء الأعمدة</li>
+                                <li>لا توجد صفوف فارغة في بداية الملف</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-upload"></i> استيراد العملاء
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary"
+                                onclick="document.getElementById('excel_file').value=''; updateFileName();">
+                                <i class="fas fa-times"></i> إلغاء التحديد
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Template Download -->
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-download"></i> تحميل النموذج
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>قم بتحميل نموذج Excel الجاهز مع البيانات التجريبية:</p>
+
+                    <a href="{{ url_for('download_customer_template') }}" class="btn btn-success btn-block mb-3 w-100">
+                        <i class="fas fa-file-excel"></i> تحميل نموذج Excel
+                    </a>
+
+                    <div class="alert alert-light">
+                        <h6>الأعمدة المطلوبة:</h6>
+                        <ul class="small mb-0">
+                            <li><strong>first_name</strong> - الاسم الأول (مطلوب)</li>
+                            <li><strong>last_name</strong> - اسم العائلة (مطلوب)</li>
+                            <li><strong>email</strong> - البريد الإلكتروني (مطلوب)</li>
+                            <li><strong>phone</strong> - رقم الهاتف (اختياري)</li>
+                            <li><strong>status</strong> - الحالة (اختياري)</li>
+                            <li><strong>assigned_instructor_email</strong> - بريد المدرب (اختياري)</li>
+                            <li><strong>initial_notes</strong> - ملاحظات أولية (اختياري)</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-warning mt-3">
+                        <h6>قيم الحالة المقبولة:</h6>
+                        <div class="small">
+                            <span class="badge bg-success me-1">active</span>
+                            <span class="badge bg-secondary me-1">inactive</span>
+                            <span class="badge bg-warning me-1">needs_follow_up</span>
+                            <span class="badge bg-danger">no_show</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sample Data Table -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-table"></i> مثال على البيانات المطلوبة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>first_name</th>
+                                    <th>last_name</th>
+                                    <th>email</th>
+                                    <th>phone</th>
+                                    <th>status</th>
+                                    <th>assigned_instructor_email</th>
+                                    <th>initial_notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>محمد</td>
+                                    <td>أحمد</td>
+                                    <td>mohammed@example.com</td>
+                                    <td>+966501234567</td>
+                                    <td>active</td>
+                                    <td>instructor@example.com</td>
+                                    <td>عميل مهتم بدورات البرمجة</td>
+                                </tr>
+                                <tr>
+                                    <td>فاطمة</td>
+                                    <td>سالم</td>
+                                    <td>fatima@example.com</td>
+                                    <td>+966507654321</td>
+                                    <td>active</td>
+                                    <td></td>
+                                    <td>ملاحظات أولية للعميل</td>
+                                </tr>
+                                <tr>
+                                    <td>أحمد</td>
+                                    <td>محمود</td>
+                                    <td>ahmed@example.com</td>
+                                    <td>+966509876543</td>
+                                    <td>needs_follow_up</td>
+                                    <td>instructor@example.com</td>
+                                    <td>يحتاج متابعة خاصة</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateFileName() {
+        const fileInput = document.getElementById('excel_file');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (fileInput.files.length > 0) {
+            const fileName = fileInput.files[0].name;
+            const fileSize = (fileInput.files[0].size / 1024 / 1024).toFixed(2);
+            submitBtn.innerHTML = `<i class="fas fa-upload"></i> استيراد من "${fileName}" (${fileSize} MB)`;
+            submitBtn.disabled = false;
+        } else {
+            submitBtn.innerHTML = '<i class="fas fa-upload"></i> استيراد العملاء';
+            submitBtn.disabled = true;
+        }
+    }
+
+    // Form submission handler
+    document.getElementById('importForm').addEventListener('submit', function (e) {
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاستيراد...';
+        submitBtn.disabled = true;
+    });
+
+    document.getElementById('excel_file').addEventListener('change', updateFileName);
+    document.addEventListener('DOMContentLoaded', updateFileName);
+</script>
+{% endblock %}

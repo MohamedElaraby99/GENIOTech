@@ -1,10 +1,22 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, make_response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 from functools import wraps
 import os
+import pandas as pd
+import io
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import seaborn as sns
+import base64
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -333,7 +345,7 @@ def admin_toggle_user(user_id):
 def admin_reports():
     # Calculate statistics
     total_customers = Customer.query.count()
-    total_courses = Course.query.count()
+    total_courses = GeneralCourse.query.count()
     total_tickets = Ticket.query.count()
     open_tickets = Ticket.query.filter_by(status='open').count()
     resolved_tickets = Ticket.query.filter_by(status='resolved').count()
@@ -509,6 +521,254 @@ def customer_detail(customer_id):
     
     return render_template('customer_detail.html', customer=customer, notes=notes, 
                          tickets=tickets, courses=courses, sessions=sessions)
+
+# Excel Import Routes
+@app.route('/customers/import-template')
+@login_required
+def download_customer_template():
+    """Download Excel template for customer import"""
+    # Create a sample Excel file
+    data = {
+        'first_name': ['محمد', 'فاطمة', 'أحمد'],
+        'last_name': ['أحمد', 'سالم', 'محمود'],
+        'email': ['mohammed@example.com', 'fatima@example.com', 'ahmed@example.com'],
+        'phone': ['+966501234567', '+966507654321', '+966509876543'],
+        'status': ['active', 'active', 'needs_follow_up'],
+        'assigned_instructor_email': ['instructor@example.com', '', 'instructor@example.com'],
+        'initial_notes': ['ملاحظات أولية للعميل', 'عميل مهتم بدورات البرمجة', 'يحتاج متابعة خاصة']
+    }
+    
+    df = pd.DataFrame(data)
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Write the template data
+        df.to_excel(writer, sheet_name='Customers Template', index=False)
+        
+        # Get workbook and worksheet for formatting
+        workbook = writer.book
+        worksheet = writer.sheets['Customers Template']
+        
+        # Create header style
+        from openpyxl.styles import Font, PatternFill, Alignment
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        
+        # Apply header formatting
+        for cell in worksheet[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Auto-adjust column widths
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+        
+        # Add instructions sheet
+        instructions_data = {
+            'Column Name': [
+                'first_name',
+                'last_name', 
+                'email',
+                'phone',
+                'status',
+                'assigned_instructor_email',
+                'initial_notes'
+            ],
+            'Required': [
+                'Yes',
+                'Yes',
+                'Yes', 
+                'No',
+                'No',
+                'No',
+                'No'
+            ],
+            'Description': [
+                'الاسم الأول للعميل',
+                'اسم العائلة للعميل',
+                'البريد الإلكتروني (يجب أن يكون فريد)',
+                'رقم الهاتف (مع رمز الدولة)',
+                'حالة العميل: active, inactive, needs_follow_up, no_show',
+                'البريد الإلكتروني للمدرب المسؤول (اختياري)',
+                'ملاحظات أولية عن العميل'
+            ],
+            'Example': [
+                'محمد',
+                'أحمد',
+                'mohammed@example.com',
+                '+966501234567',
+                'active',
+                'instructor@example.com',
+                'عميل مهتم بدورات البرمجة'
+            ]
+        }
+        
+        instructions_df = pd.DataFrame(instructions_data)
+        instructions_df.to_excel(writer, sheet_name='Instructions', index=False)
+        
+        # Format instructions sheet
+        instructions_sheet = writer.sheets['Instructions']
+        for cell in instructions_sheet[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Auto-adjust column widths for instructions
+        for column in instructions_sheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 60)
+            instructions_sheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename=customer_import_template_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    
+    return response
+
+@app.route('/customers/import', methods=['GET', 'POST'])
+@login_required
+def import_customers():
+    """Import customers from Excel file"""
+    if request.method == 'GET':
+        return render_template('import_customers.html')
+    
+    # Handle file upload
+    if 'excel_file' not in request.files:
+        flash('يرجى اختيار ملف Excel', 'error')
+        return redirect(request.url)
+    
+    file = request.files['excel_file']
+    if file.filename == '':
+        flash('لم يتم اختيار أي ملف', 'error')
+        return redirect(request.url)
+    
+    if not file.filename.lower().endswith(('.xlsx', '.xls')):
+        flash('يرجى رفع ملف Excel فقط (.xlsx أو .xls)', 'error')
+        return redirect(request.url)
+    
+    try:
+        # Read Excel file
+        df = pd.read_excel(file)
+        
+        # Debug: Show what columns were found
+        found_columns = list(df.columns)
+        print(f"Found columns in Excel: {found_columns}")
+        
+        # Clean column names (remove extra spaces, etc.)
+        df.columns = df.columns.str.strip()
+        
+        # Validate required columns
+        required_columns = ['first_name', 'last_name', 'email']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        
+        if missing_columns:
+            flash(f'الأعمدة التالية مطلوبة ومفقودة: {", ".join(missing_columns)}', 'error')
+            flash(f'الأعمدة الموجودة في الملف: {", ".join(found_columns)}', 'info')
+            flash('يرجى التأكد من أن أسماء الأعمدة مطابقة تماماً: first_name, last_name, email', 'info')
+            return redirect(request.url)
+        
+        # Import statistics
+        imported_count = 0
+        skipped_count = 0
+        error_messages = []
+        
+        for index, row in df.iterrows():
+            try:
+                # Skip empty rows
+                if pd.isna(row['first_name']) or pd.isna(row['last_name']) or pd.isna(row['email']):
+                    skipped_count += 1
+                    continue
+                
+                # Check if customer already exists
+                existing_customer = Customer.query.filter_by(email=row['email']).first()
+                if existing_customer:
+                    error_messages.append(f'الصف {index + 2}: العميل بالبريد الإلكتروني {row["email"]} موجود مسبقاً')
+                    skipped_count += 1
+                    continue
+                
+                # Find assigned instructor if specified
+                assigned_instructor = None
+                if not pd.isna(row.get('assigned_instructor_email')):
+                    assigned_instructor = User.query.filter_by(
+                        email=row['assigned_instructor_email'],
+                        role='instructor'
+                    ).first()
+                    if not assigned_instructor:
+                        error_messages.append(f'الصف {index + 2}: المدرب بالبريد الإلكتروني {row["assigned_instructor_email"]} غير موجود')
+                
+                # Validate status
+                valid_statuses = ['active', 'inactive', 'needs_follow_up', 'no_show']
+                status = row.get('status', 'active')
+                if pd.isna(status):
+                    status = 'active'
+                if status not in valid_statuses:
+                    status = 'active'
+                
+                # Create customer
+                customer = Customer(
+                    first_name=str(row['first_name']).strip(),
+                    last_name=str(row['last_name']).strip(),
+                    email=str(row['email']).strip().lower(),
+                    phone=str(row.get('phone', '')).strip() if not pd.isna(row.get('phone')) else '',
+                    status=status,
+                    assigned_instructor_id=assigned_instructor.id if assigned_instructor else None,
+                    initial_notes=str(row.get('initial_notes', '')).strip() if not pd.isna(row.get('initial_notes')) else ''
+                )
+                
+                db.session.add(customer)
+                imported_count += 1
+                
+            except Exception as e:
+                error_messages.append(f'الصف {index + 2}: خطأ في الاستيراد - {str(e)}')
+                skipped_count += 1
+        
+        # Commit changes
+        try:
+            db.session.commit()
+            
+            # Success message
+            success_msg = f'تم استيراد {imported_count} عميل بنجاح'
+            if skipped_count > 0:
+                success_msg += f', تم تخطي {skipped_count} صف'
+            flash(success_msg, 'success')
+            
+            # Show errors if any
+            if error_messages:
+                for error in error_messages[:10]:  # Show first 10 errors
+                    flash(error, 'warning')
+                if len(error_messages) > 10:
+                    flash(f'وهناك {len(error_messages) - 10} أخطاء إضافية...', 'warning')
+            
+            return redirect(url_for('customers'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'حدث خطأ أثناء حفظ البيانات: {str(e)}', 'error')
+            return redirect(request.url)
+            
+    except Exception as e:
+        flash(f'خطأ في قراءة ملف Excel: {str(e)}', 'error')
+        return redirect(request.url)
 
 # Ticket Management Routes
 @app.route('/tickets')
@@ -804,6 +1064,350 @@ def admin_delete_category(category_id):
         flash('Category deleted successfully', 'success')
     
     return redirect(url_for('admin_categories'))
+
+# Report Generation Routes
+@app.route('/admin/reports/customers/csv')
+@admin_required
+def export_customers_csv():
+    # Get all customers with related data
+    customers = Customer.query.all()
+    
+    # Prepare data for CSV
+    data = []
+    for customer in customers:
+        data.append({
+            'ID': customer.id,
+            'First Name': customer.first_name,
+            'Last Name': customer.last_name,
+            'Email': customer.email,
+            'Phone': customer.phone or '',
+            'Status': customer.status,
+            'Assigned Instructor': f"{customer.assigned_instructor.first_name} {customer.assigned_instructor.last_name}" if customer.assigned_instructor else 'Unassigned',
+            'Created Date': customer.created_at.strftime('%Y-%m-%d'),
+            'Notes': customer.initial_notes or '',
+            'Total Sessions': len(customer.sessions),
+            'Total Tickets': len(customer.tickets),
+            'Active Enrollments': len([e for e in customer.enrollments if e.status == 'active'])
+        })
+    
+    # Create DataFrame and convert to CSV
+    df = pd.DataFrame(data)
+    
+    # Create CSV response
+    output = io.StringIO()
+    df.to_csv(output, index=False)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=customers_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    return response
+
+@app.route('/admin/reports/tickets/excel')
+@admin_required
+def export_tickets_excel():
+    # Get all tickets with related data
+    tickets = Ticket.query.all()
+    
+    # Prepare data for Excel
+    data = []
+    for ticket in tickets:
+        data.append({
+            'Ticket ID': ticket.id,
+            'Title': ticket.title,
+            'Description': ticket.description[:100] + '...' if len(ticket.description) > 100 else ticket.description,
+            'Customer': f"{ticket.customer.first_name} {ticket.customer.last_name}",
+            'Customer Email': ticket.customer.email,
+            'Assigned To': f"{ticket.assigned_to.first_name} {ticket.assigned_to.last_name}" if ticket.assigned_to else 'Unassigned',
+            'Status': ticket.status,
+            'Priority': ticket.priority,
+            'Created Date': ticket.created_at.strftime('%Y-%m-%d %H:%M'),
+            'Resolved Date': ticket.resolved_at.strftime('%Y-%m-%d %H:%M') if ticket.resolved_at else 'Not Resolved',
+            'Resolution Notes': ticket.resolution_notes or ''
+        })
+    
+    # Create DataFrame
+    df = pd.DataFrame(data)
+    
+    # Create Excel file in memory
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Tickets Report', index=False)
+        
+        # Get the workbook and worksheet
+        workbook = writer.book
+        worksheet = writer.sheets['Tickets Report']
+        
+        # Auto-adjust column widths
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename=tickets_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    return response
+
+@app.route('/admin/reports/summary/pdf')
+@admin_required
+def export_summary_pdf():
+    # Get statistics
+    total_customers = Customer.query.count()
+    total_courses = GeneralCourse.query.count()
+    total_tickets = Ticket.query.count()
+    total_enrollments = Enrollment.query.count()
+    
+    open_tickets = Ticket.query.filter_by(status='open').count()
+    resolved_tickets = Ticket.query.filter_by(status='resolved').count()
+    
+    active_customers = Customer.query.filter_by(status='active').count()
+    active_courses = GeneralCourse.query.filter_by(status='active').count()
+    
+    # Create PDF in memory
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    
+    # Container for PDF elements
+    elements = []
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        alignment=1  # Center alignment
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=12,
+        textColor=colors.darkblue
+    )
+    
+    # Title
+    title = Paragraph("GENIO TECH CRM - Summary Report", title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 20))
+    
+    # Report date
+    date_para = Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %H:%M')}", styles['Normal'])
+    elements.append(date_para)
+    elements.append(Spacer(1, 20))
+    
+    # Overview Section
+    overview_title = Paragraph("System Overview", heading_style)
+    elements.append(overview_title)
+    
+    overview_data = [
+        ['Metric', 'Count'],
+        ['Total Customers', str(total_customers)],
+        ['Active Customers', str(active_customers)],
+        ['Total Courses', str(total_courses)],
+        ['Active Courses', str(active_courses)],
+        ['Total Enrollments', str(total_enrollments)],
+        ['Total Tickets', str(total_tickets)],
+        ['Open Tickets', str(open_tickets)],
+        ['Resolved Tickets', str(resolved_tickets)]
+    ]
+    
+    overview_table = Table(overview_data, colWidths=[3*inch, 2*inch])
+    overview_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 14),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(overview_table)
+    elements.append(Spacer(1, 20))
+    
+    # Customer Status Breakdown
+    customer_title = Paragraph("Customer Status Breakdown", heading_style)
+    elements.append(customer_title)
+    
+    customer_statuses = {}
+    for status in ['active', 'inactive', 'needs_follow_up', 'no_show']:
+        count = Customer.query.filter_by(status=status).count()
+        customer_statuses[status.replace('_', ' ').title()] = count
+    
+    customer_data = [['Status', 'Count']]
+    for status, count in customer_statuses.items():
+        customer_data.append([status, str(count)])
+    
+    customer_table = Table(customer_data, colWidths=[3*inch, 2*inch])
+    customer_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.darkblue),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.lightblue),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(customer_table)
+    elements.append(Spacer(1, 20))
+    
+    # Recent Activity
+    activity_title = Paragraph("Recent Activity (Last 30 Days)", heading_style)
+    elements.append(activity_title)
+    
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    recent_customers = Customer.query.filter(Customer.created_at >= thirty_days_ago).count()
+    recent_tickets = Ticket.query.filter(Ticket.created_at >= thirty_days_ago).count()
+    recent_enrollments = Enrollment.query.filter(Enrollment.enrollment_date >= thirty_days_ago).count()
+    
+    activity_data = [
+        ['Activity', 'Count'],
+        ['New Customers', str(recent_customers)],
+        ['New Tickets', str(recent_tickets)],
+        ['New Enrollments', str(recent_enrollments)]
+    ]
+    
+    activity_table = Table(activity_data, colWidths=[3*inch, 2*inch])
+    activity_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.lightgreen),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    
+    elements.append(activity_table)
+    
+    # Footer
+    elements.append(Spacer(1, 30))
+    footer = Paragraph("Generated by GENIO TECH CRM System", styles['Normal'])
+    elements.append(footer)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = make_response(buffer.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=summary_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+    
+    return response
+
+@app.route('/admin/reports/analytics')
+@admin_required
+def analytics_dashboard():
+    # Generate analytics charts and data
+    
+    # Customer registration trend (last 12 months)
+    months = []
+    customer_counts = []
+    for i in range(12):
+        month_start = datetime.now().replace(day=1) - timedelta(days=30*i)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        count = Customer.query.filter(
+            Customer.created_at >= month_start,
+            Customer.created_at <= month_end
+        ).count()
+        months.append(month_start.strftime('%b %Y'))
+        customer_counts.append(count)
+    
+    months.reverse()
+    customer_counts.reverse()
+    
+    # Create customer trend chart
+    plt.figure(figsize=(12, 6))
+    plt.subplot(2, 2, 1)
+    plt.plot(months, customer_counts, marker='o', linewidth=2, markersize=6)
+    plt.title('Customer Registration Trend (12 Months)', fontsize=14, fontweight='bold')
+    plt.xlabel('Month')
+    plt.ylabel('New Customers')
+    plt.xticks(rotation=45)
+    plt.grid(True, alpha=0.3)
+    
+    # Ticket status distribution
+    plt.subplot(2, 2, 2)
+    ticket_statuses = ['open', 'in_progress', 'resolved', 'closed']
+    ticket_counts = [Ticket.query.filter_by(status=status).count() for status in ticket_statuses]
+    colors_pie = ['#ff9999', '#66b3ff', '#99ff99', '#ffcc99']
+    
+    # Check if we have any ticket data
+    if sum(ticket_counts) > 0:
+        # Filter out zero counts for better pie chart
+        non_zero_data = [(status, count, color) for status, count, color in zip(ticket_statuses, ticket_counts, colors_pie) if count > 0]
+        if non_zero_data:
+            filtered_statuses, filtered_counts, filtered_colors = zip(*non_zero_data)
+            plt.pie(filtered_counts, labels=filtered_statuses, autopct='%1.1f%%', colors=filtered_colors)
+        else:
+            plt.pie([1], labels=['No Data'], colors=['#cccccc'])
+    else:
+        plt.pie([1], labels=['No Tickets'], colors=['#cccccc'])
+    plt.title('Ticket Status Distribution', fontsize=14, fontweight='bold')
+    
+    # Course enrollment stats
+    plt.subplot(2, 2, 3)
+    courses = GeneralCourse.query.all()
+    course_names = [course.title[:15] + '...' if len(course.title) > 15 else course.title for course in courses[:5]]
+    enrollment_counts = [len(course.enrollments) for course in courses[:5]]
+    plt.bar(course_names, enrollment_counts, color='skyblue')
+    plt.title('Top 5 Courses by Enrollment', fontsize=14, fontweight='bold')
+    plt.xlabel('Course')
+    plt.ylabel('Enrollments')
+    plt.xticks(rotation=45)
+    
+    # Customer status distribution
+    plt.subplot(2, 2, 4)
+    customer_statuses = ['active', 'inactive', 'needs_follow_up', 'no_show']
+    customer_status_counts = [Customer.query.filter_by(status=status).count() for status in customer_statuses]
+    plt.bar(customer_statuses, customer_status_counts, color=['green', 'gray', 'orange', 'red'])
+    plt.title('Customer Status Distribution', fontsize=14, fontweight='bold')
+    plt.xlabel('Status')
+    plt.ylabel('Count')
+    plt.xticks(rotation=45)
+    
+    plt.tight_layout()
+    
+    # Save chart to base64 string
+    img_buffer = io.BytesIO()
+    plt.savefig(img_buffer, format='png', dpi=300, bbox_inches='tight')
+    img_buffer.seek(0)
+    
+    # Convert to base64
+    chart_data = base64.b64encode(img_buffer.getvalue()).decode()
+    plt.close()
+    
+    # Calculate additional statistics
+    stats = {
+        'total_customers': Customer.query.count(),
+        'total_courses': GeneralCourse.query.count(),
+        'total_tickets': Ticket.query.count(),
+        'total_enrollments': Enrollment.query.count(),
+        'resolution_rate': (Ticket.query.filter_by(status='resolved').count() / max(Ticket.query.count(), 1)) * 100,
+        'active_course_rate': (GeneralCourse.query.filter_by(status='active').count() / max(GeneralCourse.query.count(), 1)) * 100,
+        'average_enrollments_per_course': Enrollment.query.count() / max(GeneralCourse.query.count(), 1)
+    }
+    
+    return render_template('admin/analytics.html', chart_data=chart_data, stats=stats)
 
 if __name__ == '__main__':
     with app.app_context():

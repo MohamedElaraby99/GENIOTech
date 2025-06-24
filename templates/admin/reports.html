@@ -175,24 +175,24 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-2">
-                            <button class="btn btn-outline-primary btn-block">
+                            <a href="{{ url_for('export_customers_csv') }}" class="btn btn-outline-primary btn-block">
                                 <i class="fas fa-file-csv"></i> Customer Report (CSV)
-                            </button>
+                            </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <button class="btn btn-outline-success btn-block">
+                            <a href="{{ url_for('export_tickets_excel') }}" class="btn btn-outline-success btn-block">
                                 <i class="fas fa-file-excel"></i> Ticket Report (Excel)
-                            </button>
+                            </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <button class="btn btn-outline-info btn-block">
+                            <a href="{{ url_for('export_summary_pdf') }}" class="btn btn-outline-info btn-block">
                                 <i class="fas fa-file-pdf"></i> Summary Report (PDF)
-                            </button>
+                            </a>
                         </div>
                         <div class="col-md-3 mb-2">
-                            <button class="btn btn-outline-warning btn-block">
+                            <a href="{{ url_for('analytics_dashboard') }}" class="btn btn-outline-warning btn-block">
                                 <i class="fas fa-chart-bar"></i> Analytics Dashboard
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>
