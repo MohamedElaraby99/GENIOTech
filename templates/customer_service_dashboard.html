@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}Customer Service Dashboard - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Modern Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-headset me-3"></i>Customer Service Dashboard
+                    </h1>
+                    <p class="dashboard-subtitle mb-0">
+                        Welcome back, {{ current_user.first_name }}! Provide excellent customer support and resolve
+                        tickets.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <div class="d-flex flex-column align-items-md-end">
+                        <small class="opacity-75">Support Hours</small>
+                        <span class="fw-bold">9:00 AM - 6:00 PM</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-4 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-primary">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div class="stats-number text-primary" id="my-tickets">-</div>
+                    <div class="stats-label text-primary">My Tickets</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-user text-primary me-1"></i>
+                            Assigned to me
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-warning">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="stats-number text-warning" id="open-tickets">-</div>
+                    <div class="stats-label text-warning">Open Tickets</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-clock text-warning me-1"></i>
+                            Need attention
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-number text-success" id="resolved-today">-</div>
+                    <div class="stats-label text-success">Resolved Today</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-trophy text-success me-1"></i>
+                            Great progress!
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-bolt text-primary me-2"></i>
+                    <h5 class="mb-0">Support Tools</h5>
+                    <span class="badge bg-primary ms-auto">Quick Actions</span>
+                </div>
+                <div class="card-body quick-actions">
+                    <div class="row g-3">
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('tickets') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-list me-2"></i>My Tickets
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('add_ticket') }}" class="btn btn-success w-100">
+                                <i class="fas fa-plus me-2"></i>Create Ticket
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('customers') }}" class="btn btn-info w-100">
+                                <i class="fas fa-users me-2"></i>Browse Customers
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('add_customer') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-user-plus me-2"></i>Add Customer
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row g-4">
+        <!-- Priority Tickets -->
+        <div class="col-lg-8">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    <h5 class="mb-0">Priority Tickets</h5>
+                    <span class="badge bg-light text-dark ms-auto">Urgent & High Priority</span>
+                </div>
+                <div class="card-body">
+                    <div id="priority-tickets">
+                        <div class="text-center py-5">
+                            <i class="fas fa-thumbs-up fa-4x text-success mb-3"></i>
+                            <h6 class="text-success mb-3">All caught up!</h6>
+                            <p class="text-muted mb-4">No urgent tickets at the moment. Great job keeping up with
+                                customer support!</p>
+                            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                                <a href="{{ url_for('tickets') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-list me-2"></i>View All Tickets
+                                </a>
+                                <a href="{{ url_for('add_ticket') }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-2"></i>Create New Ticket
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics & Support Analytics -->
+        <div class="col-lg-4">
+            <div class="modern-card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-chart-line text-info me-2"></i>
+                    <h5 class="mb-0">Performance Metrics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Avg. Response Time</span>
+                            <span class="status-badge status-success">
+                                < 2h</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-success" style="width: 85%"></div>
+                        </div>
+                        <small class="text-muted">Target: < 4 hours</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Resolution Rate</span>
+                            <span class="status-badge status-info">95%</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-info" style="width: 95%"></div>
+                        </div>
+                        <small class="text-muted">First contact resolution</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Customer Satisfaction</span>
+                            <span class="status-badge status-warning">4.8/5</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-warning" style="width: 96%"></div>
+                        </div>
+                        <small class="text-muted">Based on recent feedback</small>
+                    </div>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <small class="text-success">
+                            <i class="fas fa-medal text-warning me-1"></i>
+                            Outstanding performance!
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support Statistics -->
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-chart-pie text-success me-2"></i>
+                    <h5 class="mb-0">Support Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Tickets This Week</span>
+                            <span class="fw-bold text-primary">24</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-primary" style="width: 80%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Resolved This Week</span>
+                            <span class="fw-bold text-success">22</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-success" style="width: 92%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Escalated Cases</span>
+                            <span class="fw-bold text-warning">1</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-warning" style="width: 4%"></div>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mt-4 pt-3 border-top">
+                        <div class="col-6">
+                            <div class="text-center p-2 rounded" style="background-color: rgba(40, 167, 69, 0.1);">
+                                <div class="fw-bold text-success">92%</div>
+                                <small class="text-muted">Closed Rate</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-2 rounded" style="background-color: rgba(255, 193, 7, 0.1);">
+                                <div class="fw-bold text-warning">1.5h</div>
+                                <small class="text-muted">Avg. Time</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load dashboard statistics with animation
+    document.addEventListener('DOMContentLoaded', function () {
+        // Animate numbers counting up
+        function animateCounter(element, target) {
+            const start = 0;
+            const duration = 1000;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+
+        // Load stats
+        fetch('/api/dashboard_stats')
+            .then(response => response.json())
+            .then(data => {
+                const myTickets = document.getElementById('my-tickets');
+                const openTickets = document.getElementById('open-tickets');
+                const resolvedToday = document.getElementById('resolved-today');
+
+                // Animate counters
+                if (data.my_tickets) animateCounter(myTickets, data.my_tickets);
+                if (data.open_tickets) animateCounter(openTickets, data.open_tickets);
+                if (data.resolved_today) animateCounter(resolvedToday, data.resolved_today);
+            })
+            .catch(error => {
+                console.error('Error loading stats:', error);
+                // Set default values if API fails
+                document.getElementById('my-tickets').textContent = '0';
+                document.getElementById('open-tickets').textContent = '0';
+                document.getElementById('resolved-today').textContent = '0';
+            });
+    });
+</script>
+{% endblock %}

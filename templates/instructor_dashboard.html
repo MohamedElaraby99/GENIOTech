@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}Instructor Dashboard - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Modern Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-chalkboard-teacher me-3"></i>Instructor Dashboard
+                    </h1>
+                    <p class="dashboard-subtitle mb-0">
+                        Welcome back, {{ current_user.first_name }}! Manage your students and teaching sessions.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <div class="d-flex flex-column align-items-md-end">
+                        <small class="opacity-75">Teaching Status</small>
+                        <span class="fw-bold text-primary">Active</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-4 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-primary">
+                        <i class="fas fa-user-graduate"></i>
+                    </div>
+                    <div class="stats-number text-primary" id="my-customers">-</div>
+                    <div class="stats-label text-primary">My Students</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-users text-primary me-1"></i>
+                            Active learners
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-success">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="stats-number text-success" id="today-sessions">-</div>
+                    <div class="stats-label text-success">Today's Sessions</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-clock text-success me-1"></i>
+                            Scheduled classes
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-info">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-number text-info" id="completed-sessions">-</div>
+                    <div class="stats-label text-info">Completed Sessions</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-trophy text-info me-1"></i>
+                            This month
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-bolt text-primary me-2"></i>
+                    <h5 class="mb-0">Teaching Tools</h5>
+                    <span class="badge bg-primary ms-auto">Quick Access</span>
+                </div>
+                <div class="card-body quick-actions">
+                    <div class="row g-3">
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('customers') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-users me-2"></i>My Students
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('sessions') }}" class="btn btn-success w-100">
+                                <i class="fas fa-calendar me-2"></i>My Schedule
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('add_session') }}" class="btn btn-info w-100">
+                                <i class="fas fa-calendar-plus me-2"></i>Schedule Session
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('add_customer') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-user-plus me-2"></i>Add Student
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row g-4">
+        <!-- Today's Schedule -->
+        <div class="col-lg-8">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-calendar-day text-primary me-2"></i>
+                    <h5 class="mb-0">Today's Schedule</h5>
+                    <span class="badge bg-light text-dark ms-auto">Today</span>
+                </div>
+                <div class="card-body">
+                    <div id="today-schedule">
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                            <h6 class="text-muted mb-3">No sessions scheduled for today</h6>
+                            <p class="text-muted mb-4">Plan your teaching day by scheduling new sessions</p>
+                            <a href="{{ url_for('add_session') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-plus me-2"></i>Schedule a Session
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Student Analytics & Quick Stats -->
+        <div class="col-lg-4">
+            <div class="modern-card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-chart-pie text-success me-2"></i>
+                    <h5 class="mb-0">Student Analytics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Active Students</span>
+                            <span class="status-badge status-success">0</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        </div>
+                        <small class="text-muted">Attending regular sessions</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Need Follow-up</span>
+                            <span class="status-badge status-warning">0</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-warning" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Require extra attention</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">No-Shows</span>
+                            <span class="status-badge status-danger">0</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-danger" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted">Missed recent sessions</small>
+                    </div>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <a href="{{ url_for('customers') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-users me-2"></i>View All Students
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teaching Performance -->
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-award text-warning me-2"></i>
+                    <h5 class="mb-0">Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Session Completion</span>
+                            <span class="fw-bold text-success">100%</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Student Satisfaction</span>
+                            <span class="fw-bold text-info">4.9/5</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-info" style="width: 98%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>On-Time Rate</span>
+                            <span class="fw-bold text-warning">95%</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-warning" style="width: 95%"></div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-4 pt-3 border-top">
+                        <small class="text-muted">
+                            <i class="fas fa-star text-warning me-1"></i>
+                            Excellent teaching performance!
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load dashboard statistics with animation
+    document.addEventListener('DOMContentLoaded', function () {
+        // Animate numbers counting up
+        function animateCounter(element, target) {
+            const start = 0;
+            const duration = 1000;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+
+        // Load stats
+        fetch('/api/dashboard_stats')
+            .then(response => response.json())
+            .then(data => {
+                const myCustomers = document.getElementById('my-customers');
+                const todaySessions = document.getElementById('today-sessions');
+                const completedSessions = document.getElementById('completed-sessions');
+
+                // Animate counters
+                if (data.my_customers) animateCounter(myCustomers, data.my_customers);
+                if (data.today_sessions) animateCounter(todaySessions, data.today_sessions);
+                if (data.completed_sessions) animateCounter(completedSessions, data.completed_sessions);
+            })
+            .catch(error => {
+                console.error('Error loading stats:', error);
+                // Set default values if API fails
+                document.getElementById('my-customers').textContent = '0';
+                document.getElementById('today-sessions').textContent = '0';
+                document.getElementById('completed-sessions').textContent = '0';
+            });
+    });
+</script>
+{% endblock %}

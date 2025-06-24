@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Modern Dashboard Header -->
+    <div class="dashboard-header">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="dashboard-title">
+                        <i class="fas fa-tachometer-alt me-3"></i>Admin Dashboard
+                    </h1>
+                    <p class="dashboard-subtitle mb-0">
+                        Welcome back, {{ current_user.first_name }}! Monitor and manage your CRM system.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                    <div class="d-flex flex-column align-items-md-end">
+                        <small class="opacity-75">System Status</small>
+                        <span class="fw-bold text-success">Online</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modern Statistics Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-primary">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stats-number text-primary" id="total-users">-</div>
+                    <div class="stats-label text-primary">Total Users</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-arrow-up text-success me-1"></i>
+                            +2 this month
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-success">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <div class="stats-number text-success" id="total-customers">-</div>
+                    <div class="stats-label text-success">Total Customers</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-arrow-up text-success me-1"></i>
+                            +12 this week
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-info">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <div class="stats-number text-info" id="total-tickets">-</div>
+                    <div class="stats-label text-info">Total Tickets</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-arrow-down text-danger me-1"></i>
+                            -3 today
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="stats-card">
+                <div class="card-body">
+                    <div class="stats-icon text-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stats-number text-warning" id="open-tickets">-</div>
+                    <div class="stats-label text-warning">Open Tickets</div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-clock text-muted me-1"></i>
+                            Requires attention
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-bolt text-primary me-2"></i>
+                    <h5 class="mb-0">Quick Actions</h5>
+                    <span class="badge bg-primary ms-auto">4 Available</span>
+                </div>
+                <div class="card-body quick-actions">
+                    <div class="row g-3">
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('admin_add_user') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-user-plus me-2"></i>Add User
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('add_customer') }}" class="btn btn-success w-100">
+                                <i class="fas fa-user-friends me-2"></i>Add Customer
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('add_ticket') }}" class="btn btn-info w-100">
+                                <i class="fas fa-ticket-alt me-2"></i>Create Ticket
+                            </a>
+                        </div>
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('admin_reports') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-chart-bar me-2"></i>View Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row g-4">
+        <!-- Recent Activity -->
+        <div class="col-lg-8">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-clock text-primary me-2"></i>
+                    <h5 class="mb-0">Recent Activity</h5>
+                    <span class="badge bg-light text-dark ms-auto">Live Updates</span>
+                </div>
+                <div class="card-body">
+                    <div class="modern-timeline">
+                        <div class="timeline-item-modern">
+                            <div class="timeline-marker-modern"></div>
+                            <div class="timeline-content-modern">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">System Initialized</h6>
+                                        <p class="mb-1 text-muted">CRM system started with default admin user</p>
+                                        <small class="text-primary">
+                                            <i class="fas fa-user-shield me-1"></i>Admin Action
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">Just now</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item-modern">
+                            <div class="timeline-marker-modern" style="border-color: #28a745;"></div>
+                            <div class="timeline-content-modern" style="border-left-color: #28a745;">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">Database Connected</h6>
+                                        <p class="mb-1 text-muted">All database tables created successfully</p>
+                                        <small class="text-success">
+                                            <i class="fas fa-database me-1"></i>System Status
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">2 min ago</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status & Quick Stats -->
+        <div class="col-lg-4">
+            <div class="modern-card mb-4">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-server text-success me-2"></i>
+                    <h5 class="mb-0">System Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="text-center p-3 rounded" style="background-color: rgba(40, 167, 69, 0.1);">
+                                <i class="fas fa-database text-success fa-2x mb-2"></i>
+                                <div class="fw-bold text-success">Database</div>
+                                <small class="text-muted">Online</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center p-3 rounded" style="background-color: rgba(40, 167, 69, 0.1);">
+                                <i class="fas fa-cogs text-success fa-2x mb-2"></i>
+                                <div class="fw-bold text-success">Application</div>
+                                <small class="text-muted">Running</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold">Server Health</span>
+                            <span class="status-badge status-success">Excellent</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-success" style="width: 95%"></div>
+                        </div>
+                        <small class="text-muted">95% Performance Score</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-chart-line text-info me-2"></i>
+                    <h5 class="mb-0">Performance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Response Time</span>
+                            <span class="fw-bold text-success">
+                                < 200ms</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-success" style="width: 90%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Uptime</span>
+                            <span class="fw-bold text-info">99.9%</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-info" style="width: 99%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Memory Usage</span>
+                            <span class="fw-bold text-warning">45%</span>
+                        </div>
+                        <div class="modern-progress">
+                            <div class="progress-bar bg-warning" style="width: 45%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Load dashboard statistics with animation
+    document.addEventListener('DOMContentLoaded', function () {
+        // Animate numbers counting up
+        function animateCounter(element, target) {
+            const start = 0;
+            const duration = 1000;
+            const increment = target / (duration / 16);
+            let current = start;
+
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current);
+            }, 16);
+        }
+
+        // Load stats
+        fetch('/api/dashboard_stats')
+            .then(response => response.json())
+            .then(data => {
+                const totalUsers = document.getElementById('total-users');
+                const totalCustomers = document.getElementById('total-customers');
+                const totalTickets = document.getElementById('total-tickets');
+                const openTickets = document.getElementById('open-tickets');
+
+                // Animate counters
+                if (data.total_users) animateCounter(totalUsers, data.total_users);
+                if (data.total_customers) animateCounter(totalCustomers, data.total_customers);
+                if (data.total_tickets) animateCounter(totalTickets, data.total_tickets);
+                if (data.open_tickets) animateCounter(openTickets, data.open_tickets);
+            })
+            .catch(error => {
+                console.error('Error loading stats:', error);
+                // Set default values if API fails
+                document.getElementById('total-users').textContent = '1';
+                document.getElementById('total-customers').textContent = '0';
+                document.getElementById('total-tickets').textContent = '0';
+                document.getElementById('open-tickets').textContent = '0';
+            });
+    });
+</script>
+{% endblock %}

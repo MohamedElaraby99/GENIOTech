@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user-edit"></i> User Profile
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <!-- Profile Information Section -->
+                        <div class="mb-4">
+                            <h5 class="text-muted border-bottom pb-2 mb-3">
+                                <i class="fas fa-user"></i> Personal Information
+                            </h5>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="first_name" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="first_name" name="first_name"
+                                        value="{{ current_user.first_name }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="last_name" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="last_name" name="last_name"
+                                        value="{{ current_user.last_name }}" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email"
+                                    value="{{ current_user.email }}" required>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" name="username"
+                                        value="{{ current_user.username }}" readonly>
+                                    <div class="form-text">Username cannot be changed</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="role" class="form-label">Role</label>
+                                    <input type="text" class="form-control" id="role" name="role"
+                                        value="{{ current_user.role.title() }}" readonly>
+                                    <div class="form-text">Role is assigned by administrators</div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="member_since" class="form-label">Member Since</label>
+                                <input type="text" class="form-control" id="member_since"
+                                    value="{{ current_user.created_at.strftime('%B %d, %Y') }}" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Password Change Section -->
+                        <div class="mb-4">
+                            <h5 class="text-muted border-bottom pb-2 mb-3">
+                                <i class="fas fa-lock"></i> Change Password
+                            </h5>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                Leave password fields empty if you don't want to change your password.
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label">Current Password</label>
+                                <input type="password" class="form-control" id="current_password"
+                                    name="current_password">
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="new_password" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirm_password"
+                                        name="confirm_password">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Profile
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Account Statistics -->
+            <div class="card shadow mt-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Account Statistics
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        {% if current_user.role == 'instructor' %}
+                        <div class="col-md-4 mb-3">
+                            <div class="bg-primary text-white p-3 rounded">
+                                <h4>{{ current_user.assigned_customers|length }}</h4>
+                                <small>Assigned Customers</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="bg-success text-white p-3 rounded">
+                                <h4>{{ current_user.instructor_sessions|length }}</h4>
+                                <small>Total Sessions</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="bg-info text-white p-3 rounded">
+                                <h4>{{ current_user.assigned_courses|length }}</h4>
+                                <small>Courses</small>
+                            </div>
+                        </div>
+                        {% elif current_user.role == 'customer_service' %}
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-warning text-white p-3 rounded">
+                                <h4>{{ current_user.assigned_tickets|length }}</h4>
+                                <small>Assigned Tickets</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="bg-secondary text-white p-3 rounded">
+                                <h4>{{ current_user.created_notes|length }}</h4>
+                                <small>Notes Created</small>
+                            </div>
+                        </div>
+                        {% elif current_user.role == 'admin' %}
+                        <div class="col-md-12 mb-3">
+                            <div class="bg-danger text-white p-3 rounded">
+                                <h4><i class="fas fa-crown"></i></h4>
+                                <small>Administrator Account</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Password validation
+    document.getElementById('new_password').addEventListener('input', function () {
+        const currentPassword = document.getElementById('current_password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        if (this.value && !currentPassword.value) {
+            currentPassword.required = true;
+            currentPassword.parentElement.querySelector('.form-label').innerHTML = 'Current Password <span class="text-danger">*</span>';
+        } else if (!this.value) {
+            currentPassword.required = false;
+            currentPassword.parentElement.querySelector('.form-label').innerHTML = 'Current Password';
+        }
+
+        if (this.value && !confirmPassword.value) {
+            confirmPassword.required = true;
+            confirmPassword.parentElement.querySelector('.form-label').innerHTML = 'Confirm New Password <span class="text-danger">*</span>';
+        } else if (!this.value) {
+            confirmPassword.required = false;
+            confirmPassword.parentElement.querySelector('.form-label').innerHTML = 'Confirm New Password';
+        }
+    });
+
+    document.getElementById('confirm_password').addEventListener('input', function () {
+        const newPassword = document.getElementById('new_password');
+
+        if (this.value !== newPassword.value) {
+            this.setCustomValidity('Passwords do not match');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+</script>
+{% endblock %}

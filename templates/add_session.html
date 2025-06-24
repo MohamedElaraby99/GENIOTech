@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Schedule Session - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('sessions') }}">Sessions</a></li>
+                    <li class="breadcrumb-item active">Schedule Session</li>
+                </ol>
+            </nav>
+
+            <h2><i class="fas fa-calendar-plus"></i> Schedule New Session</h2>
+            <p class="text-muted">Schedule a session with a customer or student</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-calendar-plus"></i> Session Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="customer_id" class="form-label">Customer/Student <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select" id="customer_id" name="customer_id" required>
+                                <option value="">Select a customer...</option>
+                                {% for customer in customers %}
+                                <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{
+                                    customer.email }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="instructor_id" class="form-label">Instructor <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select" id="instructor_id" name="instructor_id" required>
+                                {% if current_user.role == 'instructor' %}
+                                <option value="{{ current_user.id }}" selected>{{ current_user.first_name }} {{
+                                    current_user.last_name }} (You)</option>
+                                {% else %}
+                                <option value="">Select an instructor...</option>
+                                {% for instructor in instructors %}
+                                <option value="{{ instructor.id }}">{{ instructor.first_name }} {{ instructor.last_name
+                                    }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="course_id" class="form-label">Related Course</label>
+                            <select class="form-select" id="course_id" name="course_id">
+                                <option value="">General Session (no specific course)</option>
+                                {% for course in courses %}
+                                <option value="{{ course.id }}">{{ course.title }} - {{ course.customer.first_name }} {{
+                                    course.customer.last_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="scheduled_date" class="form-label">Date & Time <span
+                                            class="text-danger">*</span></label>
+                                    <input type="datetime-local" class="form-control" id="scheduled_date"
+                                        name="scheduled_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="duration" class="form-label">Duration (minutes) <span
+                                            class="text-danger">*</span></label>
+                                    <select class="form-select" id="duration" name="duration" required>
+                                        <option value="30">30 minutes</option>
+                                        <option value="45">45 minutes</option>
+                                        <option value="60" selected>1 hour</option>
+                                        <option value="90">1.5 hours</option>
+                                        <option value="120">2 hours</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Session Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                placeholder="Add any notes about this session..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{{ url_for('sessions') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Schedule Session
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Set minimum date to today
+    document.addEventListener('DOMContentLoaded', function () {
+        const dateInput = document.getElementById('scheduled_date');
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        const localDateTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+        dateInput.min = localDateTime;
+
+        // Auto-filter courses based on selected customer
+        const customerSelect = document.getElementById('customer_id');
+        const courseSelect = document.getElementById('course_id');
+
+        customerSelect.addEventListener('change', function () {
+            const customerId = this.value;
+            const courses = courseSelect.querySelectorAll('option[value]:not([value=""])');
+
+            // Get selected customer's name
+            const selectedCustomerName = customerId ?
+                customerSelect.querySelector('option[value="' + customerId + '"]').textContent.split(' (')[0] : '';
+
+            courses.forEach(function (option) {
+                const courseText = option.textContent;
+                if (customerId && courseText.includes(selectedCustomerName)) {
+                    option.style.display = '';
+                } else if (!customerId) {
+                    option.style.display = '';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+
+            // Reset course selection if customer changes
+            if (courseSelect.value && courseSelect.querySelector('option[value="' + courseSelect.value + '"]:not([style*="none"])') === null) {
+                courseSelect.value = '';
+            }
+        });
+    });
+</script>
+{% endblock %}

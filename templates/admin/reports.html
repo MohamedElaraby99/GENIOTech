@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Reports & Analytics - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
+            <p class="text-muted">Comprehensive system reports and analytics dashboard</p>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Customers</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_customers }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-users fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Courses</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_courses }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-book fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Tickets</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.total_tickets }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-ticket-alt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Resolution Rate</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {% if stats.total_tickets > 0 %}
+                                {{ "%.1f"|format((stats.resolved_tickets / stats.total_tickets) * 100) }}%
+                                {% else %}
+                                0%
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Ticket Status Distribution -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-chart-pie"></i> Ticket Status Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <div class="border-left border-warning px-3">
+                                <div class="text-warning">
+                                    <small>Open Tickets</small>
+                                </div>
+                                <div class="h4 mb-0">{{ stats.open_tickets }}</div>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <div class="border-left border-success px-3">
+                                <div class="text-success">
+                                    <small>Resolved</small>
+                                </div>
+                                <div class="h4 mb-0">{{ stats.resolved_tickets }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="progress mb-2">
+                        {% set total = stats.open_tickets + stats.resolved_tickets %}
+                        {% if total > 0 %}
+                        <div class="progress-bar bg-warning" style="width: {{ (stats.open_tickets / total) * 100 }}%">
+                        </div>
+                        <div class="progress-bar bg-success"
+                            style="width: {{ (stats.resolved_tickets / total) * 100 }}%"></div>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">Ticket resolution progress over time</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-md-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-clock"></i> Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% if recent_customers %}
+                        {% for customer in recent_customers %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <h6 class="timeline-title">New Customer</h6>
+                                <p class="timeline-text">{{ customer.first_name }} {{ customer.last_name }} registered
+                                </p>
+                                <small class="text-muted">{{ customer.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+
+                        {% if recent_tickets %}
+                        {% for ticket in recent_tickets %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <h6 class="timeline-title">New Ticket</h6>
+                                <p class="timeline-text">#{{ ticket.id }} {{ ticket.title }}</p>
+                                <small class="text-muted">{{ ticket.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-download"></i> Export Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-primary btn-block">
+                                <i class="fas fa-file-csv"></i> Customer Report (CSV)
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-success btn-block">
+                                <i class="fas fa-file-excel"></i> Ticket Report (Excel)
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-info btn-block">
+                                <i class="fas fa-file-pdf"></i> Summary Report (PDF)
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-outline-warning btn-block">
+                                <i class="fas fa-chart-bar"></i> Analytics Dashboard
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+
+    .border-left-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+
+    .border-left-info {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+
+    .border-left-warning {
+        border-left: 0.25rem solid #f6c23e !important;
+    }
+
+    .timeline {
+        position: relative;
+        padding: 0;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0.75rem;
+        width: 2px;
+        background-color: #dee2e6;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-left: 3rem;
+        padding-bottom: 1.5rem;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: 0.5rem;
+        top: 0.25rem;
+        width: 1rem;
+        height: 1rem;
+        border-radius: 50%;
+        z-index: 1;
+    }
+
+    .timeline-title {
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+        font-weight: 600;
+    }
+
+    .timeline-text {
+        margin-bottom: 0.25rem;
+    }
+</style>
+{% endblock %}

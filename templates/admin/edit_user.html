@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Edit User - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Modern Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-user-edit"></i> Edit User</h2>
+                    <p class="text-muted">Update user information and permissions</p>
+                </div>
+                <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Users
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-xl-8 col-lg-10">
+            <div class="modern-card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="fas fa-user text-primary me-2"></i>
+                    <h5 class="mb-0">User Information</h5>
+                    <span class="badge bg-light text-dark ms-auto">ID: {{ user.id }}</span>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Personal Information -->
+                            <div class="col-md-6">
+                                <label for="first_name" class="form-label">
+                                    <i class="fas fa-user text-muted me-1"></i>First Name *
+                                </label>
+                                <input type="text" class="form-control" id="first_name" name="first_name"
+                                    value="{{ user.first_name }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label">
+                                    <i class="fas fa-user text-muted me-1"></i>Last Name *
+                                </label>
+                                <input type="text" class="form-control" id="last_name" name="last_name"
+                                    value="{{ user.last_name }}" required>
+                            </div>
+
+                            <!-- Account Information -->
+                            <div class="col-md-6">
+                                <label for="username" class="form-label">
+                                    <i class="fas fa-at text-muted me-1"></i>Username *
+                                </label>
+                                <input type="text" class="form-control" id="username" name="username"
+                                    value="{{ user.username }}" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope text-muted me-1"></i>Email *
+                                </label>
+                                <input type="email" class="form-control" id="email" name="email"
+                                    value="{{ user.email }}" required>
+                            </div>
+
+                            <!-- Role and Status -->
+                            <div class="col-md-6">
+                                <label for="role" class="form-label">
+                                    <i class="fas fa-user-tag text-muted me-1"></i>Role *
+                                </label>
+                                <select class="form-select" id="role" name="role" required>
+                                    <option value="admin" {{ 'selected' if user.role=='admin' else '' }}>Admin</option>
+                                    <option value="instructor" {{ 'selected' if user.role=='instructor' else '' }}>
+                                        Instructor</option>
+                                    <option value="customer_service" {{ 'selected' if user.role=='customer_service'
+                                        else '' }}>Customer Service</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                        {{ 'checked' if user.is_active else '' }}>
+                                    <label class="form-check-label" for="is_active">
+                                        <i class="fas fa-toggle-on text-success me-1"></i>Account Active
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Password Section -->
+                            <div class="col-12">
+                                <div class="border-top pt-3 mt-3">
+                                    <h6 class="text-muted mb-3">
+                                        <i class="fas fa-lock text-muted me-1"></i>Change Password (Optional)
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label for="password" class="form-label">New Password</label>
+                                            <input type="password" class="form-control" id="password" name="password"
+                                                placeholder="Leave blank to keep current password">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="confirm_password" class="form-label">Confirm New
+                                                Password</label>
+                                            <input type="password" class="form-control" id="confirm_password"
+                                                name="confirm_password" placeholder="Confirm new password">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Account Details -->
+                            <div class="col-12">
+                                <div class="border-top pt-3 mt-3">
+                                    <h6 class="text-muted mb-3">
+                                        <i class="fas fa-info-circle text-muted me-1"></i>Account Details
+                                    </h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Created Date</label>
+                                            <input type="text" class="form-control"
+                                                value="{{ user.created_at.strftime('%Y-%m-%d %H:%M:%S') }}" disabled>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Current Status</label>
+                                            <input type="text" class="form-control"
+                                                value="{{ 'Active' if user.is_active else 'Inactive' }}" disabled>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Save Changes
+                                    </button>
+                                    <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                    {% if user.id != current_user.id %}
+                                    <button type="button" class="btn btn-outline-danger ms-auto" data-bs-toggle="modal"
+                                        data-bs-target="#deleteModal">
+                                        <i class="fas fa-trash me-2"></i>Delete User
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete user <strong>{{ user.username }}</strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning me-2"></i>
+                    This action cannot be undone. The user will be permanently removed from the system.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>Delete User
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Password confirmation validation
+    document.addEventListener('DOMContentLoaded', function () {
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirm_password');
+
+        function validatePassword() {
+            if (password.value && confirmPassword.value) {
+                if (password.value !== confirmPassword.value) {
+                    confirmPassword.setCustomValidity('Passwords do not match');
+                } else {
+                    confirmPassword.setCustomValidity('');
+                }
+            } else {
+                confirmPassword.setCustomValidity('');
+            }
+        }
+
+        password.addEventListener('input', validatePassword);
+        confirmPassword.addEventListener('input', validatePassword);
+
+        // Form submission validation
+        document.querySelector('form').addEventListener('submit', function (e) {
+            if (password.value && !confirmPassword.value) {
+                e.preventDefault();
+                alert('Please confirm the new password');
+                confirmPassword.focus();
+            }
+        });
+    });
+</script>
+{% endblock %}
