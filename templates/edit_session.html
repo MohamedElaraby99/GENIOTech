@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Session #{{ session.id }} - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2><i class="fas fa-edit"></i> Edit Session #{{ session.id }}</h2>
+                    <p class="text-muted">Update session details and scheduling information</p>
+                </div>
+                <a href="{{ url_for('session_detail', session_id=session.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Session
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-calendar-edit"></i> Session Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="customer_id" class="form-label">
+                                        <i class="fas fa-user"></i> Customer *
+                                    </label>
+                                    <select class="form-select" id="customer_id" name="customer_id" required>
+                                        <option value="">Select Customer</option>
+                                        {% for customer in customers %}
+                                        <option value="{{ customer.id }}" {{ 'selected' if
+                                            customer.id==session.customer_id else '' }}>
+                                            {{ customer.first_name }} {{ customer.last_name }}
+                                            {% if customer.phone %} - {{ customer.phone }}{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="instructor_id" class="form-label">
+                                        <i class="fas fa-chalkboard-teacher"></i> Instructor *
+                                    </label>
+                                    <select class="form-select" id="instructor_id" name="instructor_id" required>
+                                        <option value="">Select Instructor</option>
+                                        {% for instructor in instructors %}
+                                        <option value="{{ instructor.id }}" {{ 'selected' if
+                                            instructor.id==session.instructor_id else '' }}>
+                                            {{ instructor.first_name }} {{ instructor.last_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-calendar"></i> Scheduled Date & Time *
+                                    </label>
+
+                                    <!-- Date Selection -->
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <label for="session_date" class="form-label">Date</label>
+                                            <input type="date" class="form-control" id="session_date"
+                                                name="session_date"
+                                                value="{{ session.scheduled_date.strftime('%Y-%m-%d') }}" required>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Quick Times</label>
+                                            <div class="d-flex flex-wrap gap-1">
+                                                <button type="button"
+                                                    class="btn btn-outline-primary btn-sm time-quick-btn"
+                                                    data-time="09:00">9 AM</button>
+                                                <button type="button"
+                                                    class="btn btn-outline-primary btn-sm time-quick-btn"
+                                                    data-time="12:00">12 PM</button>
+                                                <button type="button"
+                                                    class="btn btn-outline-primary btn-sm time-quick-btn"
+                                                    data-time="15:00">3 PM</button>
+                                                <button type="button"
+                                                    class="btn btn-outline-primary btn-sm time-quick-btn"
+                                                    data-time="18:00">6 PM</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Time Selection -->
+                                    <div class="row">
+                                        <div class="col-4">
+                                            <label for="session_hour" class="form-label">Hour</label>
+                                            <select class="form-select" id="session_hour" name="session_hour" required>
+                                                <option value="">Hour</option>
+                                                {% for hour in range(1, 13) %}
+                                                <option value="{{ hour }}" {{ 'selected' if
+                                                    ((session.scheduled_date.hour % 12) or 12)==hour else '' }}>{{ hour
+                                                    }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-4">
+                                            <label for="session_minute" class="form-label">Minute</label>
+                                            <select class="form-select" id="session_minute" name="session_minute"
+                                                required>
+                                                <option value="00" {{ 'selected' if session.scheduled_date.minute==0
+                                                    else '' }}>00</option>
+                                                <option value="15" {{ 'selected' if session.scheduled_date.minute==15
+                                                    else '' }}>15</option>
+                                                <option value="30" {{ 'selected' if session.scheduled_date.minute==30
+                                                    else '' }}>30</option>
+                                                <option value="45" {{ 'selected' if session.scheduled_date.minute==45
+                                                    else '' }}>45</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-4">
+                                            <label for="session_ampm" class="form-label">AM/PM</label>
+                                            <select class="form-select" id="session_ampm" name="session_ampm" required>
+                                                <option value="AM" {{ 'selected' if session.scheduled_date.hour < 12
+                                                    else '' }}>AM</option>
+                                                <option value="PM" {{ 'selected' if session.scheduled_date.hour>= 12
+                                                    else '' }}>PM</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Hidden field for backend compatibility -->
+                                    <input type="hidden" id="scheduled_date" name="scheduled_date"
+                                        value="{{ session.scheduled_date.strftime('%Y-%m-%dT%H:%M') }}">
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="duration" class="form-label">
+                                        <i class="fas fa-clock"></i> Duration (minutes) *
+                                    </label>
+                                    <select class="form-select" id="duration" name="duration" required>
+                                        <option value="30" {{ 'selected' if session.duration==30 else '' }}>30 minutes
+                                        </option>
+                                        <option value="45" {{ 'selected' if session.duration==45 else '' }}>45 minutes
+                                        </option>
+                                        <option value="60" {{ 'selected' if session.duration==60 else '' }}>60 minutes
+                                        </option>
+                                        <option value="90" {{ 'selected' if session.duration==90 else '' }}>90 minutes
+                                        </option>
+                                        <option value="120" {{ 'selected' if session.duration==120 else '' }}>120
+                                            minutes</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">
+                                <i class="fas fa-sticky-note"></i> Session Notes
+                            </label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                placeholder="Add any notes or special instructions for this session...">{{ session.notes if session.notes else '' }}</textarea>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i>
+                                    Session created on {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                    <br>
+                                    Current status:
+                                    <span
+                                        class="badge bg-{{ 'info' if session.status == 'scheduled' else 'success' if session.status == 'completed' else 'warning' if session.status == 'no_show' else 'secondary' }}">
+                                        {{ session.status.replace('_', ' ').title() }}
+                                    </span>
+                                </small>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-secondary me-2" onclick="window.history.back();">
+                                    <i class="fas fa-times"></i> Cancel
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Update Session
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set minimum date to today
+        const sessionDateInput = document.getElementById('session_date');
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        sessionDateInput.min = today;
+
+        // Time selection elements
+        const sessionHour = document.getElementById('session_hour');
+        const sessionMinute = document.getElementById('session_minute');
+        const sessionAmPm = document.getElementById('session_ampm');
+        const hiddenDateInput = document.getElementById('scheduled_date');
+
+        // Quick time selection buttons
+        document.querySelectorAll('.time-quick-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const time24 = this.getAttribute('data-time');
+                const [hour24, minute] = time24.split(':');
+
+                // Convert 24-hour to 12-hour format
+                let hour12 = parseInt(hour24);
+                let ampm = 'AM';
+
+                if (hour12 === 0) {
+                    hour12 = 12;
+                } else if (hour12 === 12) {
+                    ampm = 'PM';
+                } else if (hour12 > 12) {
+                    hour12 = hour12 - 12;
+                    ampm = 'PM';
+                }
+
+                // Update the dropdowns
+                sessionHour.value = hour12.toString();
+                sessionMinute.value = minute;
+                sessionAmPm.value = ampm;
+
+                // Remove active class from all buttons and add to clicked button
+                document.querySelectorAll('.time-quick-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+
+                this.classList.add('active');
+                this.classList.remove('btn-outline-primary');
+                this.classList.add('btn-primary');
+
+                // Update the hidden field
+                updateScheduledDate();
+            });
+        });
+
+        // Function to update the hidden scheduled_date field
+        function updateScheduledDate() {
+            const date = sessionDateInput.value;
+            const hour = sessionHour.value;
+            const minute = sessionMinute.value;
+            const ampm = sessionAmPm.value;
+
+            if (date && hour && minute && ampm) {
+                // Convert 12-hour to 24-hour format
+                let hour24 = parseInt(hour);
+                if (ampm === 'PM' && hour24 !== 12) {
+                    hour24 += 12;
+                } else if (ampm === 'AM' && hour24 === 12) {
+                    hour24 = 0;
+                }
+
+                // Format as datetime-local string
+                const formattedHour = hour24.toString().padStart(2, '0');
+                const formattedMinute = minute.padStart(2, '0');
+                const datetimeString = `${date}T${formattedHour}:${formattedMinute}`;
+
+                hiddenDateInput.value = datetimeString;
+            }
+        }
+
+        // Add event listeners to time selection dropdowns
+        [sessionDateInput, sessionHour, sessionMinute, sessionAmPm].forEach(element => {
+            element.addEventListener('change', function () {
+                updateScheduledDate();
+
+                // Clear quick button selection when manually changing time
+                if (element !== sessionDateInput) {
+                    document.querySelectorAll('.time-quick-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.classList.remove('btn-primary');
+                        btn.classList.add('btn-outline-primary');
+                    });
+                }
+            });
+        });
+
+        // Initial update of scheduled date
+        updateScheduledDate();
+    });
+
+    // Form validation
+    document.querySelector('form').addEventListener('submit', function (e) {
+        const customer = document.getElementById('customer_id').value;
+        const instructor = document.getElementById('instructor_id').value;
+        const hiddenDateInput = document.getElementById('scheduled_date');
+
+        if (!customer || !instructor || !hiddenDateInput.value) {
+            e.preventDefault();
+            alert('Please fill in all required fields');
+            return false;
+        }
+
+        // Check if scheduled time is in the future
+        const scheduledTime = new Date(hiddenDateInput.value);
+        const now = new Date();
+
+        if (scheduledTime <= now) {
+            e.preventDefault();
+            alert('Please schedule the session for a future date and time');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

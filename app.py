@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 import seaborn as sns
 import base64
+import json
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
@@ -134,36 +135,7 @@ class CourseCategory(db.Model):
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class GeneralCourse(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    category_id = db.Column(db.Integer, db.ForeignKey('course_category.id'))
-    instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    duration_hours = db.Column(db.Integer, default=10)  # Total course duration
-    price = db.Column(db.Float, default=0.0)
-    max_students = db.Column(db.Integer, default=20)
-    status = db.Column(db.String(20), default='active')  # active, inactive, archived
-    start_date = db.Column(db.DateTime)
-    end_date = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    category = db.relationship('CourseCategory', backref='courses')
-    instructor = db.relationship('User', backref='taught_courses')
 
-class Enrollment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
-    course_id = db.Column(db.Integer, db.ForeignKey('general_course.id'), nullable=False)
-    enrollment_date = db.Column(db.DateTime, default=datetime.utcnow)
-    status = db.Column(db.String(20), default='active')  # active, completed, dropped, suspended
-    progress = db.Column(db.Float, default=0.0)  # Percentage completion
-    final_grade = db.Column(db.String(10))  # A, B, C, D, F
-    completion_date = db.Column(db.DateTime)
-    notes = db.Column(db.Text)
-    
-    customer = db.relationship('Customer', backref='enrollments')
-    course = db.relationship('GeneralCourse', backref='enrollments')
 
 # Group Management Models
 class Group(db.Model):
@@ -229,6 +201,120 @@ class GroupAttendance(db.Model):
     
     group_session = db.relationship('GroupSession', backref='attendance_records')
     customer = db.relationship('Customer', backref='attendance_records')
+
+# New audit trail and history models
+class AuditLog(db.Model):
+    """Track all important actions in the system"""
+    id = db.Column(db.Integer, primary_key=True)
+    entity_type = db.Column(db.String(50), nullable=False)  # 'group', 'customer', 'session', etc.
+    entity_id = db.Column(db.Integer, nullable=False)
+    action = db.Column(db.String(50), nullable=False)  # 'created', 'updated', 'deleted', 'member_added', etc.
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    old_values = db.Column(db.Text)  # JSON string of old values
+    new_values = db.Column(db.Text)  # JSON string of new values
+    description = db.Column(db.String(255))
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref='audit_logs')
+
+class CustomerHistory(db.Model):
+    """Track customer interactions and changes"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    event_type = db.Column(db.String(50), nullable=False)  # 'status_change', 'group_joined', 'session_attended', etc.
+    event_description = db.Column(db.String(255), nullable=False)
+    event_data = db.Column(db.Text)  # JSON string for additional data
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    customer = db.relationship('Customer', backref='history_events')
+    created_by = db.relationship('User', backref='customer_events_created')
+
+class GroupHistory(db.Model):
+    """Track group events and changes"""
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    event_type = db.Column(db.String(50), nullable=False)  # 'created', 'member_added', 'session_completed', etc.
+    event_description = db.Column(db.String(255), nullable=False)
+    event_data = db.Column(db.Text)  # JSON string for additional data
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    group = db.relationship('Group', backref='history_events')
+    created_by = db.relationship('User', backref='group_events_created')
+
+class Performance(db.Model):
+    """Track student performance metrics"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    assessment_date = db.Column(db.Date, nullable=False)
+    score = db.Column(db.Float)  # 0-100 scale
+    grade = db.Column(db.String(10))  # A, B, C, D, F or custom grading
+    assessment_type = db.Column(db.String(50))  # 'quiz', 'exam', 'project', 'participation'
+    notes = db.Column(db.Text)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    customer = db.relationship('Customer', backref='performance_records')
+    group = db.relationship('Group', backref='performance_records')
+    created_by = db.relationship('User', backref='assessments_created')
+
+class Communication(db.Model):
+    """Track all communications with customers"""
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    communication_type = db.Column(db.String(50), nullable=False)  # 'phone', 'whatsapp', 'email', 'in_person'
+    direction = db.Column(db.String(20), nullable=False)  # 'outbound', 'inbound'
+    subject = db.Column(db.String(200))
+    content = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), default='completed')  # 'completed', 'failed', 'pending'
+    response_received = db.Column(db.Boolean, default=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    customer = db.relationship('Customer', backref='communications')
+    created_by = db.relationship('User', backref='communications_sent')
+
+# Helper function to log activities
+def log_activity(entity_type, entity_id, action, user_id, description=None, old_values=None, new_values=None):
+    """Helper function to create audit log entries"""
+    audit_log = AuditLog(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        action=action,
+        user_id=user_id,
+        description=description,
+        old_values=json.dumps(old_values) if old_values else None,
+        new_values=json.dumps(new_values) if new_values else None,
+        ip_address=request.remote_addr if request else None,
+        user_agent=request.headers.get('User-Agent') if request else None
+    )
+    db.session.add(audit_log)
+
+def log_customer_event(customer_id, event_type, description, event_data=None, created_by_id=None):
+    """Helper function to log customer events"""
+    event = CustomerHistory(
+        customer_id=customer_id,
+        event_type=event_type,
+        event_description=description,
+        event_data=json.dumps(event_data) if event_data else None,
+        created_by_id=created_by_id or current_user.id
+    )
+    db.session.add(event)
+
+def log_group_event(group_id, event_type, description, event_data=None, created_by_id=None):
+    """Helper function to log group events"""
+    event = GroupHistory(
+        group_id=group_id,
+        event_type=event_type,
+        event_description=description,
+        event_data=json.dumps(event_data) if event_data else None,
+        created_by_id=created_by_id or current_user.id
+    )
+    db.session.add(event)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -434,7 +520,7 @@ def admin_toggle_user(user_id):
 def admin_reports():
     # Calculate statistics
     total_customers = Customer.query.count()
-    total_courses = GeneralCourse.query.count()
+    total_groups = Group.query.count()
     total_tickets = Ticket.query.count()
     open_tickets = Ticket.query.filter_by(status='open').count()
     resolved_tickets = Ticket.query.filter_by(status='resolved').count()
@@ -445,7 +531,7 @@ def admin_reports():
     
     stats = {
         'total_customers': total_customers,
-        'total_courses': total_courses,
+        'total_groups': total_groups,
         'total_tickets': total_tickets,
         'open_tickets': open_tickets,
         'resolved_tickets': resolved_tickets
@@ -668,13 +754,112 @@ def customer_detail(customer_id):
         flash('Access denied', 'error')
         return redirect(url_for('customers'))
     
+    # Get basic data
     notes = Note.query.filter_by(customer_id=customer_id).order_by(Note.created_at.desc()).all()
     tickets = Ticket.query.filter_by(customer_id=customer_id).order_by(Ticket.created_at.desc()).all()
-    courses = Course.query.filter_by(customer_id=customer_id).order_by(Course.created_at.desc()).all()
     sessions = Session.query.filter_by(customer_id=customer_id).order_by(Session.scheduled_date.desc()).all()
     
-    return render_template('customer_detail.html', customer=customer, notes=notes, 
-                         tickets=tickets, courses=courses, sessions=sessions)
+    # Get group memberships and performance
+    group_memberships = db.session.query(GroupMember, Group).join(Group).filter(
+        GroupMember.customer_id == customer_id
+    ).order_by(GroupMember.joined_date.desc()).all()
+    
+    # Get attendance records
+    attendance_records = db.session.query(GroupAttendance, GroupSession, Group).join(
+        GroupSession, GroupAttendance.group_session_id == GroupSession.id
+    ).join(Group, GroupSession.group_id == Group.id).filter(
+        GroupAttendance.customer_id == customer_id
+    ).order_by(GroupSession.session_date.desc()).all()
+    
+    # Calculate attendance statistics
+    total_sessions = len(attendance_records)
+    present_sessions = len([r for r in attendance_records if r[0].status == 'present'])
+    attendance_rate = (present_sessions / total_sessions * 100) if total_sessions > 0 else 0
+    
+    # Get performance records
+    performance_records = Performance.query.filter_by(customer_id=customer_id).order_by(
+        Performance.assessment_date.desc()
+    ).all()
+    
+    # Calculate performance statistics
+    avg_score = sum([p.score for p in performance_records if p.score]) / len(performance_records) if performance_records else None
+    
+    # Get communications
+    communications = Communication.query.filter_by(customer_id=customer_id).order_by(
+        Communication.created_at.desc()
+    ).limit(10).all()
+    
+    # Get customer history
+    customer_history = CustomerHistory.query.filter_by(customer_id=customer_id).order_by(
+        CustomerHistory.created_at.desc()
+    ).limit(20).all()
+    
+    # Group-specific performance
+    group_performance = {}
+    for membership, group in group_memberships:
+        group_perfs = [p for p in performance_records if p.group_id == group.id]
+        group_attendance = [a for a in attendance_records if a[2].id == group.id]
+        
+        group_present = len([a for a in group_attendance if a[0].status == 'present'])
+        group_total = len(group_attendance)
+        group_attendance_rate = (group_present / group_total * 100) if group_total > 0 else 0
+        
+        group_avg_score = sum([p.score for p in group_perfs if p.score]) / len(group_perfs) if group_perfs else None
+        
+        group_performance[group.id] = {
+            'group': group,
+            'membership': membership,
+            'attendance_rate': group_attendance_rate,
+            'total_sessions': group_total,
+            'present_sessions': group_present,
+            'avg_score': group_avg_score,
+            'recent_performances': group_perfs[:3]
+        }
+    
+    # Overall customer statistics
+    customer_stats = {
+        'total_groups': len([m for m, g in group_memberships if m.status == 'active']),
+        'total_sessions_attended': present_sessions,
+        'total_sessions': total_sessions,
+        'attendance_rate': round(attendance_rate, 1),
+        'avg_performance': round(avg_score, 1) if avg_score else None,
+        'total_assessments': len(performance_records),
+        'total_tickets': len(tickets),
+        'open_tickets': len([t for t in tickets if t.status in ['open', 'in_progress']]),
+        'total_communications': len(communications),
+        'customer_since_days': (datetime.now().date() - customer.created_at.date()).days
+    }
+    
+    # Monthly activity for charts
+    monthly_activity = {}
+    
+    # Group sessions by month
+    for attendance, session, group in attendance_records:
+        month_key = session.session_date.strftime('%Y-%m')
+        if month_key not in monthly_activity:
+            monthly_activity[month_key] = {'sessions': 0, 'assessments': 0}
+        monthly_activity[month_key]['sessions'] += 1
+    
+    # Assessments by month
+    for performance in performance_records:
+        month_key = performance.assessment_date.strftime('%Y-%m')
+        if month_key not in monthly_activity:
+            monthly_activity[month_key] = {'sessions': 0, 'assessments': 0}
+        monthly_activity[month_key]['assessments'] += 1
+    
+    return render_template('customer_detail.html', 
+                         customer=customer, 
+                         notes=notes,
+                         tickets=tickets, 
+                         sessions=sessions,
+                         group_memberships=group_memberships,
+                         attendance_records=attendance_records[:10],  # Recent 10
+                         performance_records=performance_records[:10],  # Recent 10
+                         communications=communications,
+                         customer_history=customer_history,
+                         group_performance=group_performance,
+                         customer_stats=customer_stats,
+                         monthly_activity=monthly_activity)
 
 # Excel Import Routes
 @app.route('/customers/import-template')
@@ -1044,23 +1229,188 @@ def sessions():
 @login_required
 def add_session():
     if request.method == 'POST':
-        session_obj = Session(
-            customer_id=request.form['customer_id'],
-            instructor_id=request.form['instructor_id'],
-            course_id=request.form.get('course_id') or None,
-            scheduled_date=datetime.strptime(request.form['scheduled_date'], '%Y-%m-%dT%H:%M'),
-            duration=int(request.form['duration']),
-            notes=request.form.get('notes', '')
-        )
-        db.session.add(session_obj)
-        db.session.commit()
-        flash('Session scheduled successfully', 'success')
+        # Get multiple customer IDs from form
+        customer_ids = request.form.getlist('customer_ids')
+        
+        if not customer_ids:
+            flash('Please select at least one customer', 'error')
+            customers = Customer.query.all()
+            instructors = User.query.filter_by(role='instructor').all()
+            return render_template('add_session.html', customers=customers, instructors=instructors)
+        
+        # Get common session data
+        instructor_id = request.form['instructor_id']
+        scheduled_date = datetime.strptime(request.form['scheduled_date'], '%Y-%m-%dT%H:%M')
+        duration = int(request.form['duration'])
+        notes = request.form.get('notes', '')
+        
+        # Create a session for each selected customer
+        sessions_created = 0
+        for customer_id in customer_ids:
+            try:
+                session_obj = Session(
+                    customer_id=int(customer_id),
+                    instructor_id=instructor_id,
+                    course_id=None,  # No longer using courses
+                    scheduled_date=scheduled_date,
+                    duration=duration,
+                    notes=notes
+                )
+                db.session.add(session_obj)
+                sessions_created += 1
+                
+                # Log the session creation for each customer
+                log_customer_event(
+                    customer_id=int(customer_id),
+                    event_type='session_scheduled',
+                    description=f'Session scheduled for {scheduled_date.strftime("%Y-%m-%d %H:%M")}',
+                    event_data=f'{{"duration": {duration}, "instructor_id": {instructor_id}}}',
+                    created_by_id=current_user.id
+                )
+                
+            except Exception as e:
+                # If there's an error with one customer, continue with others
+                continue
+        
+        if sessions_created > 0:
+            db.session.commit()
+            if sessions_created == 1:
+                flash('Session scheduled successfully', 'success')
+            else:
+                flash(f'{sessions_created} sessions scheduled successfully', 'success')
+        else:
+            flash('No sessions could be created. Please try again.', 'error')
+            
         return redirect(url_for('sessions'))
     
     customers = Customer.query.all()
     instructors = User.query.filter_by(role='instructor').all()
-    courses = Course.query.all()
-    return render_template('add_session.html', customers=customers, instructors=instructors, courses=courses)
+    return render_template('add_session.html', customers=customers, instructors=instructors)
+
+@app.route('/sessions/<int:session_id>')
+@login_required
+def session_detail(session_id):
+    session = Session.query.get_or_404(session_id)
+    
+    # Check if user has permission to view this session
+    if current_user.role == 'instructor' and session.instructor_id != current_user.id:
+        flash('You do not have permission to view this session', 'error')
+        return redirect(url_for('sessions'))
+    
+    return render_template('session_detail.html', session=session)
+
+@app.route('/sessions/<int:session_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_session(session_id):
+    session = Session.query.get_or_404(session_id)
+    
+    # Check if user has permission to edit this session
+    if current_user.role == 'instructor' and session.instructor_id != current_user.id:
+        flash('You do not have permission to edit this session', 'error')
+        return redirect(url_for('sessions'))
+    
+    if request.method == 'POST':
+        # Get form data
+        customer_id = request.form['customer_id']
+        instructor_id = request.form['instructor_id']
+        scheduled_date = datetime.strptime(request.form['scheduled_date'], '%Y-%m-%dT%H:%M')
+        duration = int(request.form['duration'])
+        notes = request.form.get('notes', '')
+        
+        # Store old values for logging
+        old_values = {
+            'customer_id': session.customer_id,
+            'instructor_id': session.instructor_id,
+            'scheduled_date': session.scheduled_date.isoformat(),
+            'duration': session.duration,
+            'notes': session.notes
+        }
+        
+        # Update session
+        session.customer_id = customer_id
+        session.instructor_id = instructor_id
+        session.scheduled_date = scheduled_date
+        session.duration = duration
+        session.notes = notes
+        
+        # Log the activity
+        log_activity(
+            entity_type='session',
+            entity_id=session.id,
+            action='updated',
+            user_id=current_user.id,
+            description=f'Session #{session.id} updated',
+            old_values=old_values,
+            new_values={
+                'customer_id': int(customer_id),
+                'instructor_id': int(instructor_id),
+                'scheduled_date': scheduled_date.isoformat(),
+                'duration': duration,
+                'notes': notes
+            }
+        )
+        
+        # Log customer event
+        log_customer_event(
+            customer_id=int(customer_id),
+            event_type='session_updated',
+            description=f'Session scheduled for {scheduled_date.strftime("%Y-%m-%d %H:%M")} was updated',
+            event_data={'session_id': session.id, 'duration': duration},
+            created_by_id=current_user.id
+        )
+        
+        db.session.commit()
+        flash('Session updated successfully', 'success')
+        return redirect(url_for('sessions'))
+    
+    customers = Customer.query.all()
+    instructors = User.query.filter_by(role='instructor').all()
+    return render_template('edit_session.html', session=session, customers=customers, instructors=instructors)
+
+@app.route('/sessions/<int:session_id>/status', methods=['POST'])
+@login_required
+def update_session_status(session_id):
+    session = Session.query.get_or_404(session_id)
+    
+    # Check if user has permission to update this session
+    if current_user.role == 'instructor' and session.instructor_id != current_user.id:
+        return jsonify({'success': False, 'message': 'Permission denied'}), 403
+    
+    new_status = request.json.get('status')
+    if new_status not in ['completed', 'no_show', 'cancelled', 'scheduled']:
+        return jsonify({'success': False, 'message': 'Invalid status'}), 400
+    
+    old_status = session.status
+    session.status = new_status
+    
+    # Log the activity
+    log_activity(
+        entity_type='session',
+        entity_id=session.id,
+        action='status_updated',
+        user_id=current_user.id,
+        description=f'Session #{session.id} status changed from {old_status} to {new_status}',
+        old_values={'status': old_status},
+        new_values={'status': new_status}
+    )
+    
+    # Log customer event
+    event_description = f'Session status changed to {new_status.replace("_", " ").title()}'
+    log_customer_event(
+        customer_id=session.customer_id,
+        event_type='session_status_updated',
+        description=event_description,
+        event_data={'session_id': session.id, 'old_status': old_status, 'new_status': new_status},
+        created_by_id=current_user.id
+    )
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True, 
+        'message': f'Session marked as {new_status.replace("_", " ")}',
+        'new_status': new_status
+    })
 
 # API Routes for AJAX
 @app.route('/api/dashboard_stats')
@@ -1094,152 +1444,7 @@ def api_dashboard_stats():
     return jsonify(stats)
 
 # Course Management Routes
-@app.route('/courses')
-@login_required
-def courses():
-    if current_user.role == 'instructor':
-        courses = GeneralCourse.query.filter_by(instructor_id=current_user.id).all()
-    else:
-        courses = GeneralCourse.query.all()
-    
-    categories = CourseCategory.query.all()
-    return render_template('courses.html', courses=courses, categories=categories)
-
-@app.route('/courses/add', methods=['GET', 'POST'])
-@login_required
-def add_course():
-    if request.method == 'POST':
-        course = GeneralCourse(
-            title=request.form['title'],
-            description=request.form['description'],
-            category_id=request.form.get('category_id') or None,
-            instructor_id=request.form['instructor_id'],
-            duration_hours=int(request.form['duration_hours']),
-            price=float(request.form['price']),
-            max_students=int(request.form['max_students']),
-            start_date=datetime.strptime(request.form['start_date'], '%Y-%m-%d') if request.form['start_date'] else None,
-            end_date=datetime.strptime(request.form['end_date'], '%Y-%m-%d') if request.form['end_date'] else None
-        )
-        db.session.add(course)
-        db.session.commit()
-        flash('Course created successfully', 'success')
-        return redirect(url_for('courses'))
-    
-    categories = CourseCategory.query.all()
-    instructors = User.query.filter_by(role='instructor').all()
-    return render_template('add_course.html', categories=categories, instructors=instructors)
-
-@app.route('/courses/<int:course_id>')
-@login_required
-def course_detail(course_id):
-    course = GeneralCourse.query.get_or_404(course_id)
-    
-    # Check permissions
-    if current_user.role == 'instructor' and course.instructor_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('courses'))
-    
-    enrollments = Enrollment.query.filter_by(course_id=course_id).all()
-    
-    # Get customers not already enrolled in this course
-    enrolled_customer_ids = [e.customer_id for e in enrollments if e.status == 'active']
-    available_customers = Customer.query.filter(~Customer.id.in_(enrolled_customer_ids)).all()
-    
-    return render_template('course_detail.html', course=course, enrollments=enrollments, available_customers=available_customers)
-
-@app.route('/courses/<int:course_id>/edit', methods=['GET', 'POST'])
-@login_required
-def edit_course(course_id):
-    course = GeneralCourse.query.get_or_404(course_id)
-    
-    # Check permissions
-    if current_user.role == 'instructor' and course.instructor_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('courses'))
-    
-    if request.method == 'POST':
-        course.title = request.form['title']
-        course.description = request.form['description']
-        course.category_id = request.form.get('category_id') or None
-        course.duration_hours = int(request.form['duration_hours'])
-        course.price = float(request.form['price'])
-        course.max_students = int(request.form['max_students'])
-        course.start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d') if request.form['start_date'] else None
-        course.end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d') if request.form['end_date'] else None
-        course.status = request.form['status']
-        
-        # Only admins can change instructor
-        if current_user.role == 'admin':
-            course.instructor_id = request.form['instructor_id']
-        
-        db.session.commit()
-        flash('Course updated successfully', 'success')
-        return redirect(url_for('course_detail', course_id=course.id))
-    
-    categories = CourseCategory.query.all()
-    instructors = User.query.filter_by(role='instructor').all()
-    return render_template('edit_course.html', course=course, categories=categories, instructors=instructors)
-
-@app.route('/courses/<int:course_id>/enroll', methods=['POST'])
-@login_required
-def enroll_student(course_id):
-    course = GeneralCourse.query.get_or_404(course_id)
-    customer_id = request.form.get('customer_id')
-    
-    if not customer_id:
-        flash('Please select a student', 'error')
-        return redirect(url_for('course_detail', course_id=course_id))
-    
-    # Check if already enrolled
-    existing_enrollment = Enrollment.query.filter_by(
-        customer_id=customer_id, 
-        course_id=course_id, 
-        status='active'
-    ).first()
-    
-    if existing_enrollment:
-        flash('Student is already enrolled in this course', 'error')
-        return redirect(url_for('course_detail', course_id=course_id))
-    
-    # Check if course is full
-    current_enrollments = Enrollment.query.filter_by(course_id=course_id, status='active').count()
-    if current_enrollments >= course.max_students:
-        flash('Course is full', 'error')
-        return redirect(url_for('course_detail', course_id=course_id))
-    
-    enrollment = Enrollment(
-        customer_id=customer_id,
-        course_id=course_id
-    )
-    db.session.add(enrollment)
-    db.session.commit()
-    
-    flash('Student enrolled successfully', 'success')
-    return redirect(url_for('course_detail', course_id=course_id))
-
-@app.route('/enrollments/<int:enrollment_id>/update', methods=['POST'])
-@login_required
-def update_enrollment(enrollment_id):
-    enrollment = Enrollment.query.get_or_404(enrollment_id)
-    
-    # Check permissions
-    if current_user.role == 'instructor' and enrollment.course.instructor_id != current_user.id:
-        flash('Access denied', 'error')
-        return redirect(url_for('courses'))
-    
-    enrollment.status = request.form.get('status', enrollment.status)
-    enrollment.progress = float(request.form.get('progress', enrollment.progress))
-    enrollment.final_grade = request.form.get('final_grade', enrollment.final_grade)
-    enrollment.notes = request.form.get('notes', enrollment.notes)
-    
-    if enrollment.status == 'completed' and not enrollment.completion_date:
-        enrollment.completion_date = datetime.utcnow()
-    
-    db.session.commit()
-    flash('Enrollment updated successfully', 'success')
-    return redirect(url_for('course_detail', course_id=enrollment.course_id))
-
-# Course Categories Management
+# Group Categories Management
 @app.route('/admin/categories')
 @admin_required
 def admin_categories():
@@ -1285,9 +1490,9 @@ def admin_edit_category(category_id):
 def admin_delete_category(category_id):
     category = CourseCategory.query.get_or_404(category_id)
     
-    # Check if category has courses
-    if category.courses:
-        flash('Cannot delete category with existing courses', 'error')
+    # Check if category has groups
+    if category.category_groups:
+        flash('Cannot delete category with existing groups', 'error')
     else:
         db.session.delete(category)
         db.session.commit()
@@ -1318,7 +1523,7 @@ def export_customers_csv():
             'Notes': customer.initial_notes or '',
             'Total Sessions': len(customer.sessions),
             'Total Tickets': len(customer.tickets),
-            'Active Enrollments': len([e for e in customer.enrollments if e.status == 'active'])
+            'Active Group Memberships': len([m for m in customer.group_memberships if m.status == 'active'])
         })
     
     # Create DataFrame and convert to CSV
@@ -1396,15 +1601,15 @@ def export_tickets_excel():
 def export_summary_pdf():
     # Get statistics
     total_customers = Customer.query.count()
-    total_courses = GeneralCourse.query.count()
+    total_groups = Group.query.count()
     total_tickets = Ticket.query.count()
-    total_enrollments = Enrollment.query.count()
+    total_group_members = GroupMember.query.count()
     
     open_tickets = Ticket.query.filter_by(status='open').count()
     resolved_tickets = Ticket.query.filter_by(status='resolved').count()
     
     active_customers = Customer.query.filter_by(status='active').count()
-    active_courses = GeneralCourse.query.filter_by(status='active').count()
+    active_groups = Group.query.filter_by(status='active').count()
     
     # Create PDF in memory
     buffer = io.BytesIO()
@@ -1449,9 +1654,9 @@ def export_summary_pdf():
         ['Metric', 'Count'],
         ['Total Customers', str(total_customers)],
         ['Active Customers', str(active_customers)],
-        ['Total Courses', str(total_courses)],
-        ['Active Courses', str(active_courses)],
-        ['Total Enrollments', str(total_enrollments)],
+        ['Total Groups', str(total_groups)],
+        ['Active Groups', str(active_groups)],
+        ['Total Group Members', str(total_group_members)],
         ['Total Tickets', str(total_tickets)],
         ['Open Tickets', str(open_tickets)],
         ['Resolved Tickets', str(resolved_tickets)]
@@ -1507,13 +1712,13 @@ def export_summary_pdf():
     thirty_days_ago = datetime.now() - timedelta(days=30)
     recent_customers = Customer.query.filter(Customer.created_at >= thirty_days_ago).count()
     recent_tickets = Ticket.query.filter(Ticket.created_at >= thirty_days_ago).count()
-    recent_enrollments = Enrollment.query.filter(Enrollment.enrollment_date >= thirty_days_ago).count()
+    recent_group_members = GroupMember.query.filter(GroupMember.joined_date >= thirty_days_ago).count()
     
     activity_data = [
         ['Activity', 'Count'],
         ['New Customers', str(recent_customers)],
         ['New Tickets', str(recent_tickets)],
-        ['New Enrollments', str(recent_enrollments)]
+        ['New Group Members', str(recent_group_members)]
     ]
     
     activity_table = Table(activity_data, colWidths=[3*inch, 2*inch])
@@ -1595,15 +1800,15 @@ def analytics_dashboard():
         plt.pie([1], labels=['No Tickets'], colors=['#cccccc'])
     plt.title('Ticket Status Distribution', fontsize=14, fontweight='bold')
     
-    # Course enrollment stats
+    # Group membership stats
     plt.subplot(2, 2, 3)
-    courses = GeneralCourse.query.all()
-    course_names = [course.title[:15] + '...' if len(course.title) > 15 else course.title for course in courses[:5]]
-    enrollment_counts = [len(course.enrollments) for course in courses[:5]]
-    plt.bar(course_names, enrollment_counts, color='skyblue')
-    plt.title('Top 5 Courses by Enrollment', fontsize=14, fontweight='bold')
-    plt.xlabel('Course')
-    plt.ylabel('Enrollments')
+    groups = Group.query.all()
+    group_names = [group.name[:15] + '...' if len(group.name) > 15 else group.name for group in groups[:5]]
+    member_counts = [len(group.members) for group in groups[:5]]
+    plt.bar(group_names, member_counts, color='skyblue')
+    plt.title('Top 5 Groups by Membership', fontsize=14, fontweight='bold')
+    plt.xlabel('Group')
+    plt.ylabel('Members')
     plt.xticks(rotation=45)
     
     # Customer status distribution
@@ -1630,12 +1835,12 @@ def analytics_dashboard():
     # Calculate additional statistics
     stats = {
         'total_customers': Customer.query.count(),
-        'total_courses': GeneralCourse.query.count(),
+        'total_groups': Group.query.count(),
         'total_tickets': Ticket.query.count(),
-        'total_enrollments': Enrollment.query.count(),
+        'total_group_members': GroupMember.query.count(),
         'resolution_rate': (Ticket.query.filter_by(status='resolved').count() / max(Ticket.query.count(), 1)) * 100,
-        'active_course_rate': (GeneralCourse.query.filter_by(status='active').count() / max(GeneralCourse.query.count(), 1)) * 100,
-        'average_enrollments_per_course': Enrollment.query.count() / max(GeneralCourse.query.count(), 1)
+        'active_group_rate': (Group.query.filter_by(status='active').count() / max(Group.query.count(), 1)) * 100,
+        'average_members_per_group': GroupMember.query.count() / max(Group.query.count(), 1)
     }
     
     return render_template('admin/analytics.html', chart_data=chart_data, stats=stats)
@@ -1756,24 +1961,87 @@ def group_detail(group_id):
         flash('Access denied.', 'error')
         return redirect(url_for('groups'))
     
-    # Get group members
+    # Get group members with detailed info
     members = db.session.query(GroupMember, Customer).join(Customer).filter(
         GroupMember.group_id == group_id,
         GroupMember.status == 'active'
     ).all()
+    
+    # Get all members (including inactive) for history
+    all_members = db.session.query(GroupMember, Customer).join(Customer).filter(
+        GroupMember.group_id == group_id
+    ).order_by(GroupMember.joined_date.desc()).all()
     
     # Get upcoming sessions
     upcoming_sessions = GroupSession.query.filter(
         GroupSession.group_id == group_id,
         GroupSession.session_date >= datetime.now().date(),
         GroupSession.status != 'cancelled'
-    ).order_by(GroupSession.session_date, GroupSession.start_time).limit(5).all()
+    ).order_by(GroupSession.session_date, GroupSession.start_time).limit(10).all()
     
-    # Get recent sessions
+    # Get recent sessions with attendance
     recent_sessions = GroupSession.query.filter(
         GroupSession.group_id == group_id,
         GroupSession.session_date < datetime.now().date()
-    ).order_by(GroupSession.session_date.desc(), GroupSession.start_time.desc()).limit(5).all()
+    ).order_by(GroupSession.session_date.desc(), GroupSession.start_time.desc()).limit(10).all()
+    
+    # Get all sessions for analytics
+    all_sessions = GroupSession.query.filter_by(group_id=group_id).all()
+    
+    # Calculate analytics
+    total_sessions = len(all_sessions)
+    completed_sessions = len([s for s in all_sessions if s.status == 'completed'])
+    cancelled_sessions = len([s for s in all_sessions if s.status == 'cancelled'])
+    
+    # Attendance analytics
+    attendance_stats = {}
+    total_possible_attendance = 0
+    total_present = 0
+    
+    for session in all_sessions:
+        if session.status == 'completed':
+            session_attendance = GroupAttendance.query.filter_by(group_session_id=session.id).all()
+            total_possible_attendance += len(session_attendance)
+            total_present += len([a for a in session_attendance if a.status == 'present'])
+    
+    attendance_rate = (total_present / total_possible_attendance * 100) if total_possible_attendance > 0 else 0
+    
+    # Member performance
+    member_performance = []
+    for member, customer in members:
+        # Get attendance for this member
+        member_attendance = db.session.query(GroupAttendance).join(GroupSession).filter(
+            GroupSession.group_id == group_id,
+            GroupAttendance.customer_id == customer.id,
+            GroupSession.status == 'completed'
+        ).all()
+        
+        total_sessions_attended = len([a for a in member_attendance if a.status == 'present'])
+        total_sessions_possible = len(member_attendance)
+        attendance_percentage = (total_sessions_attended / total_sessions_possible * 100) if total_sessions_possible > 0 else 0
+        
+        # Get performance records
+        performance_records = Performance.query.filter_by(
+            customer_id=customer.id,
+            group_id=group_id
+        ).order_by(Performance.assessment_date.desc()).all()
+        
+        avg_score = sum([p.score for p in performance_records if p.score]) / len(performance_records) if performance_records else None
+        
+        member_performance.append({
+            'member': member,
+            'customer': customer,
+            'attendance_rate': attendance_percentage,
+            'total_sessions': total_sessions_possible,
+            'sessions_attended': total_sessions_attended,
+            'avg_score': avg_score,
+            'recent_performances': performance_records[:3]
+        })
+    
+    # Group history and events
+    group_history = GroupHistory.query.filter_by(group_id=group_id).order_by(
+        GroupHistory.created_at.desc()
+    ).limit(20).all()
     
     # Get available customers for adding to group
     current_member_ids = [member[0].customer_id for member in members]
@@ -1782,9 +2050,41 @@ def group_detail(group_id):
         Customer.status == 'active'
     ).all()
     
-    return render_template('group_detail.html', group=group, members=members, 
-                         upcoming_sessions=upcoming_sessions, recent_sessions=recent_sessions,
-                         available_customers=available_customers)
+    # Progress timeline data for charts
+    session_dates = [s.session_date for s in all_sessions if s.status == 'completed']
+    session_dates.sort()
+    
+    # Monthly progress
+    monthly_progress = {}
+    for session_date in session_dates:
+        month_key = session_date.strftime('%Y-%m')
+        monthly_progress[month_key] = monthly_progress.get(month_key, 0) + 1
+    
+    # Overall group statistics
+    group_stats = {
+        'total_members': len(members),
+        'total_sessions': total_sessions,
+        'completed_sessions': completed_sessions,
+        'cancelled_sessions': cancelled_sessions,
+        'attendance_rate': round(attendance_rate, 1),
+        'completion_rate': round((completed_sessions / total_sessions * 100) if total_sessions > 0 else 0, 1),
+        'active_since_days': (datetime.now().date() - group.start_date).days,
+        'avg_session_duration': sum([(datetime.combine(datetime.today(), s.end_time) - 
+                                    datetime.combine(datetime.today(), s.start_time)).seconds / 60 
+                                   for s in all_sessions]) / len(all_sessions) if all_sessions else 0
+    }
+    
+    return render_template('group_detail.html', 
+                         group=group, 
+                         members=members,
+                         all_members=all_members,
+                         upcoming_sessions=upcoming_sessions, 
+                         recent_sessions=recent_sessions,
+                         available_customers=available_customers,
+                         member_performance=member_performance,
+                         group_history=group_history,
+                         group_stats=group_stats,
+                         monthly_progress=monthly_progress)
 
 @app.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1956,6 +2256,99 @@ def group_session_attendance(session_id):
     
     return render_template('group_attendance.html', session=session, members=members, 
                          existing_attendance=existing_attendance)
+
+@app.route('/performance/add', methods=['POST'])
+@login_required
+def add_performance_record():
+    """Add a performance/assessment record for a student"""
+    try:
+        performance = Performance(
+            customer_id=request.form['customer_id'],
+            group_id=request.form['group_id'],
+            assessment_date=datetime.strptime(request.form['assessment_date'], '%Y-%m-%d').date(),
+            score=float(request.form['score']) if request.form.get('score') else None,
+            grade=request.form.get('grade', '').upper() if request.form.get('grade') else None,
+            assessment_type=request.form['assessment_type'],
+            notes=request.form.get('notes', ''),
+            created_by_id=current_user.id
+        )
+        
+        db.session.add(performance)
+        
+        # Log this activity
+        customer = Customer.query.get(request.form['customer_id'])
+        group = Group.query.get(request.form['group_id'])
+        log_customer_event(
+            customer_id=customer.id,
+            event_type='assessment_added',
+            description=f'Assessment added: {performance.assessment_type} in {group.name}',
+            event_data={
+                'group_id': group.id,
+                'score': performance.score,
+                'grade': performance.grade,
+                'assessment_type': performance.assessment_type
+            }
+        )
+        
+        log_group_event(
+            group_id=group.id,
+            event_type='assessment_added',
+            description=f'Assessment added for {customer.first_name} {customer.last_name}',
+            event_data={
+                'customer_id': customer.id,
+                'score': performance.score,
+                'assessment_type': performance.assessment_type
+            }
+        )
+        
+        db.session.commit()
+        flash('Assessment record added successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error adding assessment: {str(e)}', 'error')
+    
+    return redirect(url_for('group_detail', group_id=request.form['group_id']))
+
+@app.route('/communication/add', methods=['POST'])
+@login_required
+def add_communication_record():
+    """Add a communication record for a customer"""
+    try:
+        communication = Communication(
+            customer_id=request.form['customer_id'],
+            communication_type=request.form['communication_type'],
+            direction=request.form['direction'],
+            subject=request.form.get('subject', ''),
+            content=request.form['content'],
+            status=request.form.get('status', 'completed'),
+            response_received=bool(request.form.get('response_received')),
+            created_by_id=current_user.id
+        )
+        
+        db.session.add(communication)
+        
+        # Log this activity
+        customer = Customer.query.get(request.form['customer_id'])
+        log_customer_event(
+            customer_id=customer.id,
+            event_type='communication_logged',
+            description=f'{communication.communication_type.title()} communication: {communication.subject or communication.content[:50]}',
+            event_data={
+                'type': communication.communication_type,
+                'direction': communication.direction,
+                'status': communication.status
+            }
+        )
+        
+        db.session.commit()
+        flash('Communication record added successfully!', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error adding communication: {str(e)}', 'error')
+    
+    return redirect(url_for('customer_detail', customer_id=request.form['customer_id']))
 
 if __name__ == '__main__':
     with app.app_context():

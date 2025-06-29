@@ -125,8 +125,8 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <div class="bg-info text-white p-3 rounded">
-                                <h4>{{ current_user.assigned_courses|length }}</h4>
-                                <small>Courses</small>
+                                <h4>{{ current_user.instructor_groups|length }}</h4>
+                                <small>Groups</small>
                             </div>
                         </div>
                         {% elif current_user.role == 'customer_service' %}

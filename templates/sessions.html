@@ -140,23 +140,33 @@
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
-                                            <button type="button" class="btn btn-outline-primary btn-sm"
-                                                title="View Details">
+                                            <a href="{{ url_for('session_detail', session_id=session.id) }}"
+                                                class="btn btn-outline-primary btn-sm" title="View Details">
                                                 <i class="fas fa-eye"></i>
-                                            </button>
+                                            </a>
                                             {% if session.status == 'scheduled' %}
-                                            <button type="button" class="btn btn-outline-success btn-sm"
-                                                title="Mark Complete">
+                                            <button type="button"
+                                                class="btn btn-outline-success btn-sm session-status-btn"
+                                                title="Mark Complete" data-session-id="{{ session.id }}"
+                                                data-status="completed">
                                                 <i class="fas fa-check"></i>
                                             </button>
-                                            <button type="button" class="btn btn-outline-warning btn-sm"
-                                                title="Mark No-Show">
+                                            <button type="button"
+                                                class="btn btn-outline-warning btn-sm session-status-btn"
+                                                title="Mark No-Show" data-session-id="{{ session.id }}"
+                                                data-status="no_show">
                                                 <i class="fas fa-user-times"></i>
                                             </button>
-                                            {% endif %}
-                                            <button type="button" class="btn btn-outline-info btn-sm" title="Edit">
+                                            <a href="{{ url_for('edit_session', session_id=session.id) }}"
+                                                class="btn btn-outline-info btn-sm" title="Edit">
                                                 <i class="fas fa-edit"></i>
-                                            </button>
+                                            </a>
+                                            {% else %}
+                                            <a href="{{ url_for('edit_session', session_id=session.id) }}"
+                                                class="btn btn-outline-info btn-sm" title="View/Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -198,6 +208,67 @@
 
             row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
         }
+    }
+
+    // Session status update functionality
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add event listeners to status update buttons
+        document.querySelectorAll('.session-status-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const sessionId = this.getAttribute('data-session-id');
+                const status = this.getAttribute('data-status');
+                updateSessionStatus(sessionId, status, this);
+            });
+        });
+    });
+
+    function updateSessionStatus(sessionId, status, buttonClicked) {
+        if (!confirm(`Are you sure you want to mark this session as ${status.replace('_', ' ')}?`)) {
+            return;
+        }
+
+        // Show loading state
+        const originalIcon = buttonClicked.innerHTML;
+        buttonClicked.disabled = true;
+        buttonClicked.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch(`/sessions/${sessionId}/status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: status })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle"></i> ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                    document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.row'));
+
+                    // Reload the page to show updated status
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    alert('Error: ' + data.message);
+                    // Re-enable button on error
+                    buttonClicked.disabled = false;
+                    buttonClicked.innerHTML = originalIcon;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the session status');
+                // Re-enable button on error
+                buttonClicked.disabled = false;
+                buttonClicked.innerHTML = originalIcon;
+            });
     }
 </script>
 {% endblock %}

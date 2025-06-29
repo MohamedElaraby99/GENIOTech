@@ -44,11 +44,11 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Course Engagement
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Group Engagement
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{
-                                "%.1f"|format(stats.average_enrollments_per_course) }}</div>
-                            <div class="text-xs text-muted">Avg enrollments per course</div>
+                                "%.1f"|format(stats.average_members_per_group) }}</div>
+                            <div class="text-xs text-muted">Avg members per group</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-graduation-cap fa-2x text-gray-300"></i>
@@ -81,10 +81,10 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Active Course Rate
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Active Group Rate
                             </div>
                             <div class="h5 mb-0 font-weight-bold text-gray-800">{{
-                                "%.1f"|format(stats.active_course_rate) }}%</div>
+                                "%.1f"|format(stats.active_group_rate) }}%</div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-chart-pie fa-2x text-gray-300"></i>
@@ -115,7 +115,7 @@
                     <div class="text-center py-5">
                         <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
                         <h5 class="text-muted">No data available for charts</h5>
-                        <p class="text-muted">Add some customers, courses, and tickets to see analytics</p>
+                        <p class="text-muted">Add some customers, groups, and tickets to see analytics</p>
                     </div>
                     {% endif %}
                 </div>
@@ -152,31 +152,31 @@
         <div class="col-md-4">
             <div class="card shadow">
                 <div class="card-header">
-                    <h6 class="card-title mb-0"><i class="fas fa-book"></i> Course Performance</h6>
+                    <h6 class="card-title mb-0"><i class="fas fa-users"></i> Group Performance</h6>
                 </div>
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-6 mb-3">
                             <div class="border-left border-success px-3">
                                 <div class="text-success">
-                                    <small>Total Courses</small>
+                                    <small>Total Groups</small>
                                 </div>
-                                <div class="h5 mb-0">{{ stats.total_courses }}</div>
+                                <div class="h5 mb-0">{{ stats.total_groups }}</div>
                             </div>
                         </div>
                         <div class="col-6 mb-3">
                             <div class="border-left border-info px-3">
                                 <div class="text-info">
-                                    <small>Enrollments</small>
+                                    <small>Group Members</small>
                                 </div>
-                                <div class="h5 mb-0">{{ stats.total_enrollments }}</div>
+                                <div class="h5 mb-0">{{ stats.total_group_members }}</div>
                             </div>
                         </div>
                     </div>
                     <div class="progress mb-2">
-                        <div class="progress-bar bg-success" style="width: {{ stats.active_course_rate }}%"></div>
+                        <div class="progress-bar bg-success" style="width: {{ stats.active_group_rate }}%"></div>
                     </div>
-                    <small class="text-muted">{{ "%.1f"|format(stats.active_course_rate) }}% courses are active</small>
+                    <small class="text-muted">{{ "%.1f"|format(stats.active_group_rate) }}% groups are active</small>
                 </div>
             </div>
         </div>

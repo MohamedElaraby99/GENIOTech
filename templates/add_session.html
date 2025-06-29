@@ -2,6 +2,121 @@
 
 {% block title %}Schedule Session - CRM System{% endblock %}
 
+{% block head %}
+<!-- Select2 CSS for modern dropdown -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+    rel="stylesheet" />
+
+<!-- Custom CSS -->
+<style>
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: calc(2.25rem + 2px);
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--multiple {
+        min-height: calc(2.25rem + 2px);
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+        background-color: #007bff;
+        border: 1px solid #007bff;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem;
+        border-radius: 0.25rem;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+        color: white;
+        margin-right: 0.25rem;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
+        color: #ffc107;
+    }
+
+    .customer-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .customer-avatar-small {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.7rem;
+        flex-shrink: 0;
+    }
+
+    .customer-details {
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    .customer-name {
+        font-weight: 600;
+        color: #212529;
+    }
+
+    .customer-info-small {
+        font-size: 0.8rem;
+        color: #6c757d;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .status-badge-small {
+        font-size: 0.65rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.2rem;
+        flex-shrink: 0;
+    }
+
+    .quick-select-container {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .quick-select-btn {
+        margin: 0.2rem;
+        font-size: 0.875rem;
+    }
+
+    .selection-summary {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .selected-customer-tag {
+        display: inline-block;
+        background: #007bff;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem;
+        border-radius: 0.25rem;
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -15,28 +130,109 @@
             </nav>
 
             <h2><i class="fas fa-calendar-plus"></i> Schedule New Session</h2>
-            <p class="text-muted">Schedule a session with a customer or student</p>
+            <p class="text-muted">Schedule a session with multiple customers or students</p>
         </div>
     </div>
 
     <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
+        <div class="col-md-10 col-lg-8">
             <div class="card shadow">
                 <div class="card-header">
                     <h5 class="card-title mb-0"><i class="fas fa-calendar-plus"></i> Session Details</h5>
                 </div>
                 <div class="card-body">
                     <form method="POST">
-                        <div class="mb-3">
-                            <label for="customer_id" class="form-label">Customer/Student <span
-                                    class="text-danger">*</span></label>
-                            <select class="form-select" id="customer_id" name="customer_id" required>
-                                <option value="">Select a customer...</option>
+                        <!-- Customer Selection Dropdown -->
+                        <div class="mb-4">
+                            <label for="customer_ids" class="form-label">
+                                Select Customers/Students <span class="text-danger">*</span>
+                            </label>
+
+                            <!-- Dedicated Search Box -->
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="fas fa-search"></i>
+                                    </span>
+                                    <input type="text" class="form-control" id="customerSearchBox"
+                                        placeholder="Search customers by name or phone number...">
+                                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle"></i> Type to filter customers in real-time
+                                </small>
+                                <div id="searchResults" class="text-muted mt-1" style="display: none;">
+                                    <i class="fas fa-search"></i> <span id="searchResultsCount">0</span> customers found
+                                </div>
+                            </div>
+
+                            <!-- Quick Selection Buttons -->
+                            <div class="quick-select-container">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <label class="form-label mb-2">
+                                            <i class="fas fa-filter"></i> Quick Selection by Status:
+                                        </label>
+                                        <div>
+                                            <button type="button"
+                                                class="btn btn-outline-success btn-sm quick-select-btn"
+                                                data-status="active">
+                                                <i class="fas fa-check-circle"></i> Active Customers
+                                            </button>
+                                            <button type="button"
+                                                class="btn btn-outline-warning btn-sm quick-select-btn"
+                                                data-status="needs_follow_up">
+                                                <i class="fas fa-exclamation-triangle"></i> Need Follow-up
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info btn-sm quick-select-btn"
+                                                data-status="all">
+                                                <i class="fas fa-users"></i> All Customers
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" id="clearAllBtn">
+                                            <i class="fas fa-times"></i> Clear Selection
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Multi-Select Dropdown -->
+                            <select class="form-select" id="customer_ids" name="customer_ids" multiple required>
                                 {% for customer in customers %}
-                                <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{
-                                    customer.phone or 'No phone' }})</option>
+                                <option value="{{ customer.id }}"
+                                    data-customer-name="{{ customer.first_name }} {{ customer.last_name }}"
+                                    data-customer-phone="{{ customer.phone or 'No phone' }}"
+                                    data-customer-status="{{ customer.status }}"
+                                    data-customer-initials="{{ customer.first_name[0] }}{{ customer.last_name[0] }}">
+                                    {{ customer.first_name }} {{ customer.last_name }}
+                                    ({{ customer.phone or 'No phone' }}) - {{ customer.status.replace('_', ' ').title()
+                                    }}
+                                </option>
                                 {% endfor %}
                             </select>
+
+                            <div class="invalid-feedback" id="customer-error" style="display: none;">
+                                Please select at least one customer.
+                            </div>
+
+                            <!-- Selection Summary -->
+                            <div id="selectionSummary" class="selection-summary" style="display: none;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong id="selectionCount">0 customers selected</strong>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle"></i> Individual sessions will be created for
+                                            each customer
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -56,39 +252,134 @@
                             </select>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="course_id" class="form-label">Related Course</label>
-                            <select class="form-select" id="course_id" name="course_id">
-                                <option value="">General Session (no specific course)</option>
-                                {% for course in courses %}
-                                <option value="{{ course.id }}">{{ course.title }} - {{ course.customer.first_name }} {{
-                                    course.customer.last_name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        <!-- Modern Date & Time Selection -->
+                        <div class="mb-4">
+                            <label class="form-label mb-3">
+                                <i class="fas fa-calendar-alt"></i> Schedule Date & Time <span
+                                    class="text-danger">*</span>
+                            </label>
 
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="scheduled_date" class="form-label">Date & Time <span
-                                            class="text-danger">*</span></label>
-                                    <input type="datetime-local" class="form-control" id="scheduled_date"
-                                        name="scheduled_date" required>
+                            <!-- Date Selection -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="session_date" class="form-label">Select Date</label>
+                                    <input type="date" class="form-control" id="session_date" name="session_date"
+                                        required>
                                 </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="duration" class="form-label">Duration (minutes) <span
-                                            class="text-danger">*</span></label>
+                                <div class="col-md-6">
+                                    <label for="duration" class="form-label">Duration</label>
                                     <select class="form-select" id="duration" name="duration" required>
                                         <option value="30">30 minutes</option>
                                         <option value="45">45 minutes</option>
                                         <option value="60" selected>1 hour</option>
                                         <option value="90">1.5 hours</option>
                                         <option value="120">2 hours</option>
+                                        <option value="180">3 hours</option>
                                     </select>
                                 </div>
                             </div>
+
+                            <!-- Quick Time Selection Buttons -->
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    <i class="fas fa-clock"></i> Quick Time Selection
+                                </label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="09:00">
+                                        9:00 AM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="10:00">
+                                        10:00 AM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="11:00">
+                                        11:00 AM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="12:00">
+                                        12:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="13:00">
+                                        1:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="14:00">
+                                        2:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="15:00">
+                                        3:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="16:00">
+                                        4:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="17:00">
+                                        5:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="18:00">
+                                        6:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="19:00">
+                                        7:00 PM
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm time-quick-btn"
+                                        data-time="20:00">
+                                        8:00 PM
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> Click a time button or use the custom time picker
+                                    below
+                                </small>
+                            </div>
+
+                            <!-- Custom Time Selection -->
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <label for="session_hour" class="form-label">Hour</label>
+                                    <select class="form-select" id="session_hour" name="session_hour" required>
+                                        <option value="">Hour</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                        <option value="7">7</option>
+                                        <option value="8">8</option>
+                                        <option value="9" selected>9</option>
+                                        <option value="10">10</option>
+                                        <option value="11">11</option>
+                                        <option value="12">12</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="session_minute" class="form-label">Minute</label>
+                                    <select class="form-select" id="session_minute" name="session_minute" required>
+                                        <option value="00" selected>00</option>
+                                        <option value="15">15</option>
+                                        <option value="30">30</option>
+                                        <option value="45">45</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="session_ampm" class="form-label">AM/PM</label>
+                                    <select class="form-select" id="session_ampm" name="session_ampm" required>
+                                        <option value="AM" selected>AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Hidden field for backend compatibility -->
+                            <input type="hidden" id="scheduled_date" name="scheduled_date">
                         </div>
 
                         <div class="mb-3">
@@ -101,8 +392,8 @@
                             <a href="{{ url_for('sessions') }}" class="btn btn-secondary">
                                 <i class="fas fa-times"></i> Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Schedule Session
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-save"></i> Schedule Session(s)
                             </button>
                         </div>
                     </form>
@@ -115,43 +406,410 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
-    // Set minimum date to today
     document.addEventListener('DOMContentLoaded', function () {
-        const dateInput = document.getElementById('scheduled_date');
+        // Set minimum date to today
+        const sessionDateInput = document.getElementById('session_date');
         const now = new Date();
-        const offset = now.getTimezoneOffset() * 60000;
-        const localDateTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
-        dateInput.min = localDateTime;
+        const today = now.toISOString().split('T')[0];
+        sessionDateInput.min = today;
 
-        // Auto-filter courses based on selected customer
-        const customerSelect = document.getElementById('customer_id');
-        const courseSelect = document.getElementById('course_id');
+        // Set default date to today
+        if (!sessionDateInput.value) {
+            sessionDateInput.value = today;
+        }
 
-        customerSelect.addEventListener('change', function () {
-            const customerId = this.value;
-            const courses = courseSelect.querySelectorAll('option[value]:not([value=""])');
+        // Time selection elements
+        const sessionHour = document.getElementById('session_hour');
+        const sessionMinute = document.getElementById('session_minute');
+        const sessionAmPm = document.getElementById('session_ampm');
+        const hiddenDateInput = document.getElementById('scheduled_date');
 
-            // Get selected customer's name
-            const selectedCustomerName = customerId ?
-                customerSelect.querySelector('option[value="' + customerId + '"]').textContent.split(' (')[0] : '';
+        // Quick time selection buttons
+        document.querySelectorAll('.time-quick-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const time24 = this.getAttribute('data-time');
+                const [hour24, minute] = time24.split(':');
 
-            courses.forEach(function (option) {
-                const courseText = option.textContent;
-                if (customerId && courseText.includes(selectedCustomerName)) {
-                    option.style.display = '';
-                } else if (!customerId) {
-                    option.style.display = '';
-                } else {
-                    option.style.display = 'none';
+                // Convert 24-hour to 12-hour format
+                let hour12 = parseInt(hour24);
+                let ampm = 'AM';
+
+                if (hour12 === 0) {
+                    hour12 = 12;
+                } else if (hour12 === 12) {
+                    ampm = 'PM';
+                } else if (hour12 > 12) {
+                    hour12 = hour12 - 12;
+                    ampm = 'PM';
+                }
+
+                // Update the dropdowns
+                sessionHour.value = hour12.toString();
+                sessionMinute.value = minute;
+                sessionAmPm.value = ampm;
+
+                // Remove active class from all buttons and add to clicked button
+                document.querySelectorAll('.time-quick-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+
+                this.classList.add('active');
+                this.classList.remove('btn-outline-primary');
+                this.classList.add('btn-primary');
+
+                // Update the hidden field
+                updateScheduledDate();
+            });
+        });
+
+        // Function to update the hidden scheduled_date field
+        function updateScheduledDate() {
+            const date = sessionDateInput.value;
+            const hour = sessionHour.value;
+            const minute = sessionMinute.value;
+            const ampm = sessionAmPm.value;
+
+            if (date && hour && minute && ampm) {
+                // Convert 12-hour to 24-hour format
+                let hour24 = parseInt(hour);
+                if (ampm === 'PM' && hour24 !== 12) {
+                    hour24 += 12;
+                } else if (ampm === 'AM' && hour24 === 12) {
+                    hour24 = 0;
+                }
+
+                // Format as datetime-local string
+                const formattedHour = hour24.toString().padStart(2, '0');
+                const formattedMinute = minute.padStart(2, '0');
+                const datetimeString = `${date}T${formattedHour}:${formattedMinute}`;
+
+                hiddenDateInput.value = datetimeString;
+            }
+        }
+
+        // Add event listeners to time selection dropdowns
+        [sessionDateInput, sessionHour, sessionMinute, sessionAmPm].forEach(element => {
+            element.addEventListener('change', function () {
+                updateScheduledDate();
+
+                // Clear quick button selection when manually changing time
+                if (element !== sessionDateInput) {
+                    document.querySelectorAll('.time-quick-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        btn.classList.remove('btn-primary');
+                        btn.classList.add('btn-outline-primary');
+                    });
+                }
+            });
+        });
+
+        // Initial update of scheduled date
+        updateScheduledDate();
+
+        // Initialize Select2 with search enabled
+        $('#customer_ids').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Click to open customer list...',
+            allowClear: true,
+            width: '100%',
+            matcher: function (params, data) {
+                // If there are no search terms, return all data
+                if ($.trim(params.term) === '') {
+                    return data;
+                }
+
+                // Search in both the text and data attributes
+                const searchTerm = params.term.toLowerCase();
+                const optionText = data.text.toLowerCase();
+                const element = data.element;
+
+                if (element) {
+                    const customerName = $(element).attr('data-customer-name') || '';
+                    const customerPhone = $(element).attr('data-customer-phone') || '';
+
+                    if (optionText.includes(searchTerm) ||
+                        customerName.toLowerCase().includes(searchTerm) ||
+                        customerPhone.toLowerCase().includes(searchTerm)) {
+                        return data;
+                    }
+                }
+
+                return null;
+            },
+            templateResult: formatCustomerOption,
+            templateSelection: formatCustomerSelection,
+            escapeMarkup: function (markup) { return markup; }
+        });
+
+        // Get search elements
+        const searchBox = document.getElementById('customerSearchBox');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const searchResults = document.getElementById('searchResults');
+
+        // External search box functionality
+        searchBox.addEventListener('input', function () {
+            const searchTerm = this.value;
+
+            // Update the Select2 search
+            $('#customer_ids').select2('search', searchTerm);
+
+            // Update search results counter
+            updateExternalSearchResults(searchTerm);
+
+            // Show/hide clear button
+            clearSearchBtn.style.display = searchTerm ? 'block' : 'none';
+        });
+
+        function updateExternalSearchResults(searchTerm) {
+            if (!searchTerm.trim()) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            // Count matching customers
+            const allOptions = $('#customer_ids option');
+            let matchCount = 0;
+
+            allOptions.each(function () {
+                if (this.value) { // Skip empty option
+                    const name = this.getAttribute('data-customer-name') || '';
+                    const phone = this.getAttribute('data-customer-phone') || '';
+                    const text = this.textContent;
+
+                    if (name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        text.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        matchCount++;
+                    }
                 }
             });
 
-            // Reset course selection if customer changes
-            if (courseSelect.value && courseSelect.querySelector('option[value="' + courseSelect.value + '"]:not([style*="none"])') === null) {
-                courseSelect.value = '';
+            // Display results
+            searchResults.style.display = 'block';
+            if (matchCount === 0) {
+                searchResults.innerHTML = '<i class="fas fa-search"></i> <span class="text-warning">No customers found matching your search</span>';
+            } else if (matchCount === 1) {
+                searchResults.innerHTML = '<i class="fas fa-search"></i> <span class="text-success">1 customer found</span>';
+            } else {
+                searchResults.innerHTML = `<i class="fas fa-search"></i> <span class="text-success">${matchCount} customers found</span>`;
+            }
+        }
+
+        // Clear search button
+        clearSearchBtn.addEventListener('click', function () {
+            searchBox.value = '';
+            $('#customer_ids').select2('search', '');
+            searchResults.style.display = 'none';
+            clearSearchBtn.style.display = 'none';
+            searchBox.focus();
+        });
+
+        // Keyboard shortcuts
+        searchBox.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                $('#customer_ids').select2('open');
+            } else if (e.key === 'Escape') {
+                searchBox.value = '';
+                $('#customer_ids').select2('search', '');
+                searchResults.style.display = 'none';
+                clearSearchBtn.style.display = 'none';
             }
         });
+
+        // Auto-focus search box
+        setTimeout(() => {
+            searchBox.focus();
+        }, 500);
+
+        // Custom formatting for dropdown options
+        function formatCustomerOption(customer) {
+            if (customer.loading) {
+                return customer.text;
+            }
+
+            const element = customer.element;
+            if (!element) return customer.text;
+
+            const initials = element.getAttribute('data-customer-initials');
+            const name = element.getAttribute('data-customer-name');
+            const phone = element.getAttribute('data-customer-phone');
+            const status = element.getAttribute('data-customer-status');
+
+            let statusClass = 'bg-secondary';
+            if (status === 'active') statusClass = 'bg-success';
+            else if (status === 'needs_follow_up') statusClass = 'bg-warning';
+            else if (status === 'no_show') statusClass = 'bg-danger';
+
+            return $(`
+                <div class="customer-option">
+                    <div class="customer-avatar-small">${initials}</div>
+                    <div class="customer-details">
+                        <div class="customer-name">${name}</div>
+                        <div class="customer-info-small">
+                            <i class="fas fa-phone"></i> ${phone}
+                        </div>
+                    </div>
+                    <span class="badge status-badge-small ${statusClass}">
+                        ${status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                </div>
+            `);
+        }
+
+        // Custom formatting for selected items
+        function formatCustomerSelection(customer) {
+            const element = customer.element;
+            if (!element) return customer.text;
+
+            const name = element.getAttribute('data-customer-name');
+            return name || customer.text;
+        }
+
+        // Quick selection buttons
+        document.querySelectorAll('.quick-select-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const status = this.getAttribute('data-status');
+                const selectedValues = [];
+
+                if (status === 'all') {
+                    // Select all customers
+                    $('#customer_ids option').each(function () {
+                        if (this.value) {
+                            selectedValues.push(this.value);
+                        }
+                    });
+                } else {
+                    // Select customers with specific status
+                    $('#customer_ids option').each(function () {
+                        if (this.value && $(this).attr('data-customer-status') === status) {
+                            selectedValues.push(this.value);
+                        }
+                    });
+                }
+
+                $('#customer_ids').val(selectedValues).trigger('change');
+                updateSelectionSummary();
+            });
+        });
+
+        // Clear all button
+        document.getElementById('clearAllBtn').addEventListener('click', function () {
+            $('#customer_ids').val(null).trigger('change');
+            updateSelectionSummary();
+        });
+
+        // Update selection summary
+        function updateSelectionSummary() {
+            const selectedCount = $('#customer_ids').val() ? $('#customer_ids').val().length : 0;
+            const summaryElement = document.getElementById('selectionSummary');
+            const countElement = document.getElementById('selectionCount');
+            const submitBtn = document.getElementById('submitBtn');
+            const customerError = document.getElementById('customer-error');
+
+            if (selectedCount === 0) {
+                summaryElement.style.display = 'none';
+                countElement.textContent = '0 customers selected';
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Schedule Session(s)';
+                customerError.style.display = 'block';
+            } else {
+                summaryElement.style.display = 'block';
+
+                if (selectedCount === 1) {
+                    countElement.innerHTML = `<i class="fas fa-user"></i> 1 customer selected`;
+                    submitBtn.innerHTML = '<i class="fas fa-save"></i> Schedule 1 Session';
+                } else {
+                    countElement.innerHTML = `<i class="fas fa-users"></i> ${selectedCount} customers selected`;
+                    submitBtn.innerHTML = `<i class="fas fa-save"></i> Schedule ${selectedCount} Sessions`;
+                }
+                customerError.style.display = 'none';
+            }
+        }
+
+        // Listen for selection changes
+        $('#customer_ids').on('change', function () {
+            updateSelectionSummary();
+        });
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function (e) {
+            const selectedCount = $('#customer_ids').val() ? $('#customer_ids').val().length : 0;
+            const date = sessionDateInput.value;
+            const hour = sessionHour.value;
+            const minute = sessionMinute.value;
+            const ampm = sessionAmPm.value;
+
+            let hasErrors = false;
+
+            // Validate customer selection
+            if (selectedCount === 0) {
+                e.preventDefault();
+                hasErrors = true;
+                customerError.style.display = 'block';
+                customerError.textContent = 'Please select at least one customer.';
+                $('#customer_ids').select2('open');
+            }
+
+            // Validate date and time selection
+            if (!date || !hour || !minute || !ampm) {
+                e.preventDefault();
+                hasErrors = true;
+
+                // Show error message for incomplete time selection
+                let timeError = document.getElementById('time-error');
+                if (!timeError) {
+                    timeError = document.createElement('div');
+                    timeError.id = 'time-error';
+                    timeError.className = 'alert alert-danger mt-2';
+                    document.querySelector('.mb-4').appendChild(timeError);
+                }
+
+                timeError.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please select a complete date and time for the session.';
+                timeError.style.display = 'block';
+
+                // Scroll to the time selection area
+                document.querySelector('.mb-4').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                // Remove time error if it exists
+                const timeError = document.getElementById('time-error');
+                if (timeError) {
+                    timeError.style.display = 'none';
+                }
+            }
+
+            // Check if scheduled time is in the future
+            if (!hasErrors && hiddenDateInput.value) {
+                const scheduledTime = new Date(hiddenDateInput.value);
+                const now = new Date();
+
+                if (scheduledTime <= now) {
+                    e.preventDefault();
+
+                    let timeError = document.getElementById('time-error');
+                    if (!timeError) {
+                        timeError = document.createElement('div');
+                        timeError.id = 'time-error';
+                        timeError.className = 'alert alert-warning mt-2';
+                        document.querySelector('.mb-4').appendChild(timeError);
+                    }
+
+                    timeError.innerHTML = '<i class="fas fa-clock"></i> Please schedule the session for a future date and time.';
+                    timeError.style.display = 'block';
+
+                    // Scroll to the time selection area
+                    document.querySelector('.mb-4').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+
+        // Initial update
+        updateSelectionSummary();
     });
 </script>
 {% endblock %}

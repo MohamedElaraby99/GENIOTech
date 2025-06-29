@@ -1,169 +1,617 @@
 {% extends "base.html" %}
 
-{% block title %}{{ group.name }} - Group Details{% endblock %}
+{% block title %}{{ group.name }} - Group Analytics & Details{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Group Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div>
-                        <h4 class="mb-1">{{ group.name }}</h4>
-                        <p class="mb-0 text-muted">{{ group.subject }}</p>
-                    </div>
-                    <div class="btn-group">
-                        <a href="{{ url_for('edit_group', group_id=group.id) }}" class="btn btn-warning">
-                            <i class="fas fa-edit"></i> Edit Group
-                        </a>
-                        <a href="{{ url_for('groups') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Groups
-                        </a>
-                    </div>
-                </div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('groups') }}">Groups</a></li>
+                    <li class="breadcrumb-item active">{{ group.name }}</li>
+                </ol>
+            </nav>
+
+            <div class="card border-0 shadow-sm bg-gradient-primary text-white">
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <strong>Instructor:</strong><br>
-                            {{ group.instructor.first_name }} {{ group.instructor.last_name }}
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-1"><i class="fas fa-users"></i> {{ group.name }}</h2>
+                            <p class="mb-2 text-white-50">{{ group.subject }}</p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <span class="badge bg-light text-dark">
+                                    <i class="fas fa-chalkboard-teacher"></i> {{ group.instructor.first_name }} {{
+                                    group.instructor.last_name }}
+                                </span>
+                                <span class="badge bg-light text-dark">
+                                    <i class="fas fa-calendar"></i> {{ group_stats.active_since_days }} days active
+                                </span>
+                                <span class="badge bg-light text-dark">
+                                    <i class="fas fa-user-friends"></i> {{ group_stats.total_members }}/{{
+                                    group.max_students }} members
+                                </span>
+                                {% if group.category %}
+                                <span class="badge bg-light text-dark">
+                                    <i class="fas fa-tag"></i> {{ group.category.name }}
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <strong>Members:</strong><br>
-                            {{ members|length }}/{{ group.max_students }}
+                        <div class="col-md-4 text-md-end">
+                            <div class="btn-group">
+                                <a href="{{ url_for('edit_group', group_id=group.id) }}" class="btn btn-light">
+                                    <i class="fas fa-edit"></i> Edit Group
+                                </a>
+                                <a href="{{ url_for('groups') }}" class="btn btn-outline-light">
+                                    <i class="fas fa-arrow-left"></i> Back
+                                </a>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <strong>Status:</strong><br>
-                            {% if group.status == 'active' %}
-                            <span class="badge bg-success">Active</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ group.status.title() }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Duration:</strong><br>
-                            {{ group.start_date.strftime('%Y-%m-%d') }} -
-                            {% if group.end_date %}{{ group.end_date.strftime('%Y-%m-%d') }}{% else %}Ongoing{% endif %}
-                        </div>
-                    </div>
-
-                    {% if group.description %}
-                    <div class="mt-3">
-                        <strong>Description:</strong><br>
-                        {{ group.description|nl2br|safe }}
-                    </div>
-                    {% endif %}
-
-                    <div class="mt-3">
-                        <strong>Schedule:</strong><br>
-                        {% for schedule in group.schedules %}
-                        <span class="badge bg-info me-2 mb-1">
-                            {{ schedule.day_of_week.title() }}: {{ schedule.start_time.strftime('%H:%M') }} - {{
-                            schedule.end_time.strftime('%H:%M') }}
-                            {% if schedule.location %} ({{ schedule.location }}){% endif %}
-                        </span>
-                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-users"></i> Group Members
-                    </h5>
-                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
-                        <i class="fas fa-plus"></i> Add Member
-                    </button>
-                </div>
-                <div class="card-body">
-                    {% if members %}
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>Joined</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for member, customer in members %}
-                                <tr>
-                                    <td>
-                                        <a href="{{ url_for('customer_detail', customer_id=customer.id) }}">
-                                            {{ customer.first_name }} {{ customer.last_name }}
-                                        </a>
-                                    </td>
-                                    <td>{{ customer.phone or '-' }}</td>
-                                    <td>{{ member.joined_date.strftime('%Y-%m-%d') }}</td>
-                                    <td>
-                                        <form method="POST"
-                                            action="{{ url_for('remove_group_member', group_id=group.id, member_id=member.id) }}"
-                                            style="display: inline;">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                onclick="return confirm('Remove this member from the group?')">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <!-- Analytics Dashboard -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-primary mb-2">
+                        <i class="fas fa-calendar-check fa-2x"></i>
                     </div>
-                    {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-user-plus fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">No members yet. Add your first member!</p>
-                    </div>
-                    {% endif %}
+                    <h4 class="mb-1">{{ group_stats.completed_sessions }}</h4>
+                    <p class="text-muted mb-0">Completed Sessions</p>
+                    <small class="text-success">{{ group_stats.completion_rate }}% completion rate</small>
                 </div>
             </div>
         </div>
-
-        <div class="col-lg-6">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-calendar-check"></i> Recent Sessions
-                    </h5>
-                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addSessionModal">
-                        <i class="fas fa-plus"></i> Add Session
-                    </button>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-success mb-2">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ group_stats.attendance_rate }}%</h4>
+                    <p class="text-muted mb-0">Attendance Rate</p>
+                    <small class="text-info">Across all sessions</small>
                 </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ "%.0f"|format(group_stats.avg_session_duration) }}</h4>
+                    <p class="text-muted mb-0">Avg. Session (min)</p>
+                    <small class="text-info">{{ group_stats.total_sessions }} total sessions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="text-info mb-2">
+                        <i class="fas fa-users fa-2x"></i>
+                    </div>
+                    <h4 class="mb-1">{{ group_stats.total_members }}</h4>
+                    <p class="text-muted mb-0">Active Members</p>
+                    <small class="text-success">{{ ((group_stats.total_members / group.max_students) * 100)|round(1) }}%
+                        capacity</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Tabs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <ul class="nav nav-tabs card-header-tabs" id="groupTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab"
+                                data-bs-target="#overview" type="button" role="tab">
+                                <i class="fas fa-chart-pie"></i> Overview
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="members-tab" data-bs-toggle="tab" data-bs-target="#members"
+                                type="button" role="tab">
+                                <i class="fas fa-users"></i> Members ({{ group_stats.total_members }})
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="sessions-tab" data-bs-toggle="tab" data-bs-target="#sessions"
+                                type="button" role="tab">
+                                <i class="fas fa-calendar"></i> Sessions
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="performance-tab" data-bs-toggle="tab"
+                                data-bs-target="#performance" type="button" role="tab">
+                                <i class="fas fa-chart-bar"></i> Performance
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history"
+                                type="button" role="tab">
+                                <i class="fas fa-history"></i> History
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
                 <div class="card-body">
-                    {% if recent_sessions %}
-                    {% for session in recent_sessions %}
-                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
-                        <div>
-                            <strong>{{ session.session_date.strftime('%Y-%m-%d') }}</strong><br>
-                            <small class="text-muted">
-                                {{ session.start_time.strftime('%H:%M') }} - {{ session.end_time.strftime('%H:%M') }}
-                                {% if session.topic %} | {{ session.topic }}{% endif %}
-                            </small>
+                    <div class="tab-content" id="groupTabsContent">
+                        <!-- Overview Tab -->
+                        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                            <div class="row">
+                                <div class="col-lg-8 mb-4">
+                                    <!-- Progress Chart -->
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-chart-area"></i> Monthly Progress
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <canvas id="progressChart" height="100"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-4 mb-4">
+                                    <!-- Quick Actions -->
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-tools"></i> Quick Actions
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="d-grid gap-2">
+                                                <button class="btn btn-primary" data-bs-toggle="modal"
+                                                    data-bs-target="#addMemberModal">
+                                                    <i class="fas fa-user-plus"></i> Add Member
+                                                </button>
+                                                <button class="btn btn-success" data-bs-toggle="modal"
+                                                    data-bs-target="#addSessionModal">
+                                                    <i class="fas fa-calendar-plus"></i> Schedule Session
+                                                </button>
+                                                <a href="{{ url_for('group_sessions', group_id=group.id) }}"
+                                                    class="btn btn-info">
+                                                    <i class="fas fa-list"></i> View All Sessions
+                                                </a>
+                                                <button class="btn btn-warning" data-bs-toggle="modal"
+                                                    data-bs-target="#addPerformanceModal">
+                                                    <i class="fas fa-clipboard-check"></i> Add Assessment
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Group Info -->
+                                    <div class="card border-0 shadow-sm mt-3">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-info-circle"></i> Group Information
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if group.description %}
+                                            <div class="mb-3">
+                                                <strong>Description:</strong><br>
+                                                <small class="text-muted">{{ group.description|nl2br|safe }}</small>
+                                            </div>
+                                            {% endif %}
+
+                                            <div class="row g-2">
+                                                <div class="col-6">
+                                                    <strong>Start Date:</strong><br>
+                                                    <small>{{ group.start_date.strftime('%Y-%m-%d') }}</small>
+                                                </div>
+                                                <div class="col-6">
+                                                    <strong>End Date:</strong><br>
+                                                    <small>{% if group.end_date %}{{ group.end_date.strftime('%Y-%m-%d')
+                                                        }}{% else %}Ongoing{% endif %}</small>
+                                                </div>
+                                                <div class="col-6">
+                                                    <strong>Status:</strong><br>
+                                                    <span
+                                                        class="badge bg-{{ 'success' if group.status == 'active' else 'secondary' }}">
+                                                        {{ group.status.title() }}
+                                                    </span>
+                                                </div>
+                                                <div class="col-6">
+                                                    <strong>Created:</strong><br>
+                                                    <small>{{ group.created_at.strftime('%Y-%m-%d') }}</small>
+                                                </div>
+                                            </div>
+
+                                            {% if group.schedules %}
+                                            <div class="mt-3">
+                                                <strong>Schedule:</strong><br>
+                                                {% for schedule in group.schedules %}
+                                                <span class="badge bg-info me-1 mb-1">
+                                                    {{ schedule.day_of_week.title() }}: {{
+                                                    schedule.start_time.strftime('%H:%M') }}-{{
+                                                    schedule.end_time.strftime('%H:%M') }}
+                                                    {% if schedule.location %} @ {{ schedule.location }}{% endif %}
+                                                </span>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            {% if session.status == 'completed' %}
-                            <span class="badge bg-success">Completed</span>
-                            {% elif session.status == 'cancelled' %}
-                            <span class="badge bg-danger">Cancelled</span>
-                            {% else %}
-                            <span class="badge bg-secondary">{{ session.status.title() }}</span>
-                            {% endif %}
+
+                        <!-- Members Tab -->
+                        <div class="tab-pane fade" id="members" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5>Active Members ({{ members|length }})</h5>
+                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                            data-bs-target="#addMemberModal">
+                                            <i class="fas fa-plus"></i> Add Member
+                                        </button>
+                                    </div>
+
+                                    {% if members %}
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Member</th>
+                                                    <th>Contact</th>
+                                                    <th>Joined</th>
+                                                    <th>Attendance</th>
+                                                    <th>Performance</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for perf_data in member_performance %}
+                                                <tr>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div
+                                                                class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                                {{ perf_data.customer.first_name[0] }}{{
+                                                                perf_data.customer.last_name[0] }}
+                                                            </div>
+                                                            <div>
+                                                                <a href="{{ url_for('customer_detail', customer_id=perf_data.customer.id) }}"
+                                                                    class="text-decoration-none">
+                                                                    <strong>{{ perf_data.customer.first_name }} {{
+                                                                        perf_data.customer.last_name }}</strong>
+                                                                </a>
+                                                                <br>
+                                                                <small class="text-muted">ID: {{ perf_data.customer.id
+                                                                    }}</small>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        {% if perf_data.customer.phone %}
+                                                        <a href="tel:{{ perf_data.customer.phone }}"
+                                                            class="text-decoration-none">
+                                                            <i class="fas fa-phone"></i> {{ perf_data.customer.phone }}
+                                                        </a>
+                                                        {% else %}
+                                                        <span class="text-muted">No phone</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {{ perf_data.member.joined_date.strftime('%Y-%m-%d') }}
+                                                        <br>
+                                                        <small class="text-muted">{{ ((datetime.now().date() -
+                                                            perf_data.member.joined_date.date()).days) }} days
+                                                            ago</small>
+                                                    </td>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="progress flex-grow-1 me-2" style="height: 8px;">
+                                                                <div class="progress-bar bg-{{ 'success' if perf_data.attendance_rate >= 80 else 'warning' if perf_data.attendance_rate >= 60 else 'danger' }}"
+                                                                    style="width: {{ perf_data.attendance_rate }}%">
+                                                                </div>
+                                                            </div>
+                                                            <small class="text-muted">{{
+                                                                "%.1f"|format(perf_data.attendance_rate) }}%</small>
+                                                        </div>
+                                                        <small class="text-muted">{{ perf_data.sessions_attended }}/{{
+                                                            perf_data.total_sessions }} sessions</small>
+                                                    </td>
+                                                    <td>
+                                                        {% if perf_data.avg_score %}
+                                                        <span
+                                                            class="badge bg-{{ 'success' if perf_data.avg_score >= 80 else 'warning' if perf_data.avg_score >= 60 else 'danger' }}">
+                                                            {{ "%.1f"|format(perf_data.avg_score) }}%
+                                                        </span>
+                                                        {% else %}
+                                                        <span class="text-muted">No assessments</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <a href="{{ url_for('customer_detail', customer_id=perf_data.customer.id) }}"
+                                                                class="btn btn-outline-primary btn-sm">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <form method="POST"
+                                                                action="{{ url_for('remove_group_member', group_id=group.id, member_id=perf_data.member.id) }}"
+                                                                style="display: inline;">
+                                                                <button type="submit"
+                                                                    class="btn btn-outline-danger btn-sm"
+                                                                    onclick="return confirm('Remove this member from the group?')">
+                                                                    <i class="fas fa-times"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No members yet</h5>
+                                        <p class="text-muted">Add your first member to get started!</p>
+                                        <button class="btn btn-primary" data-bs-toggle="modal"
+                                            data-bs-target="#addMemberModal">
+                                            <i class="fas fa-plus"></i> Add First Member
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sessions Tab -->
+                        <div class="tab-pane fade" id="sessions" role="tabpanel">
+                            <div class="row">
+                                <!-- Upcoming Sessions -->
+                                <div class="col-lg-6 mb-4">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header d-flex justify-content-between align-items-center">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-calendar-plus"></i> Upcoming Sessions
+                                            </h5>
+                                            <button class="btn btn-sm btn-success" data-bs-toggle="modal"
+                                                data-bs-target="#addSessionModal">
+                                                <i class="fas fa-plus"></i> Add
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if upcoming_sessions %}
+                                            {% for session in upcoming_sessions %}
+                                            <div
+                                                class="d-flex justify-content-between align-items-center border-bottom py-3">
+                                                <div>
+                                                    <h6 class="mb-1">{{ session.session_date.strftime('%a, %b %d, %Y')
+                                                        }}</h6>
+                                                    <p class="mb-1">
+                                                        <i class="fas fa-clock text-muted"></i>
+                                                        {{ session.start_time.strftime('%H:%M') }} - {{
+                                                        session.end_time.strftime('%H:%M') }}
+                                                    </p>
+                                                    {% if session.topic %}
+                                                    <p class="mb-1"><strong>{{ session.topic }}</strong></p>
+                                                    {% endif %}
+                                                    {% if session.location %}
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-map-marker-alt"></i> {{ session.location }}
+                                                    </small>
+                                                    {% endif %}
+                                                </div>
+                                                <div>
+                                                    <span class="badge bg-primary">{{ session.status.title() }}</span>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                            {% else %}
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-calendar-times fa-2x text-muted mb-2"></i>
+                                                <p class="text-muted">No upcoming sessions</p>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Recent Sessions -->
+                                <div class="col-lg-6 mb-4">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-history"></i> Recent Sessions
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if recent_sessions %}
+                                            {% for session in recent_sessions %}
+                                            <div
+                                                class="d-flex justify-content-between align-items-center border-bottom py-3">
+                                                <div>
+                                                    <h6 class="mb-1">{{ session.session_date.strftime('%a, %b %d, %Y')
+                                                        }}</h6>
+                                                    <p class="mb-1">
+                                                        <i class="fas fa-clock text-muted"></i>
+                                                        {{ session.start_time.strftime('%H:%M') }} - {{
+                                                        session.end_time.strftime('%H:%M') }}
+                                                    </p>
+                                                    {% if session.topic %}
+                                                    <p class="mb-1"><strong>{{ session.topic }}</strong></p>
+                                                    {% endif %}
+                                                    {% if session.location %}
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-map-marker-alt"></i> {{ session.location }}
+                                                    </small>
+                                                    {% endif %}
+                                                </div>
+                                                <div>
+                                                    <span
+                                                        class="badge bg-{{ 'success' if session.status == 'completed' else 'danger' if session.status == 'cancelled' else 'secondary' }}">
+                                                        {{ session.status.title() }}
+                                                    </span>
+                                                    {% if session.status == 'completed' %}
+                                                    <br>
+                                                    <a href="{{ url_for('group_session_attendance', session_id=session.id) }}"
+                                                        class="btn btn-outline-primary btn-sm mt-1">
+                                                        <i class="fas fa-clipboard-check"></i> Attendance
+                                                    </a>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                            <div class="text-center mt-3">
+                                                <a href="{{ url_for('group_sessions', group_id=group.id) }}"
+                                                    class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-list"></i> View All Sessions
+                                                </a>
+                                            </div>
+                                            {% else %}
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-calendar fa-2x text-muted mb-2"></i>
+                                                <p class="text-muted">No sessions yet</p>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Performance Tab -->
+                        <div class="tab-pane fade" id="performance" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5>Student Performance Overview</h5>
+                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                                            data-bs-target="#addPerformanceModal">
+                                            <i class="fas fa-plus"></i> Add Assessment
+                                        </button>
+                                    </div>
+
+                                    <!-- Performance Summary -->
+                                    <div class="row mb-4">
+                                        {% for perf_data in member_performance %}
+                                        <div class="col-lg-6 mb-3">
+                                            <div class="card border-0 shadow-sm">
+                                                <div class="card-body">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <h6 class="mb-1">{{ perf_data.customer.first_name }} {{
+                                                                perf_data.customer.last_name }}</h6>
+                                                            <p class="text-muted mb-2">
+                                                                Attendance: {{ "%.1f"|format(perf_data.attendance_rate)
+                                                                }}% |
+                                                                {% if perf_data.avg_score %}Score: {{
+                                                                "%.1f"|format(perf_data.avg_score) }}%{% else %}No
+                                                                scores{% endif %}
+                                                            </p>
+                                                        </div>
+                                                        <div class="text-end">
+                                                            {% if perf_data.avg_score %}
+                                                            <span
+                                                                class="badge bg-{{ 'success' if perf_data.avg_score >= 80 else 'warning' if perf_data.avg_score >= 60 else 'danger' }} fs-6">
+                                                                {{ "%.0f"|format(perf_data.avg_score) }}%
+                                                            </span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+
+                                                    {% if perf_data.recent_performances %}
+                                                    <div class="mt-3">
+                                                        <small class="text-muted mb-2 d-block">Recent
+                                                            Assessments:</small>
+                                                        {% for performance in perf_data.recent_performances %}
+                                                        <div
+                                                            class="d-flex justify-content-between align-items-center py-1">
+                                                            <div>
+                                                                <small>{{ performance.assessment_type.title() }}</small>
+                                                                <br>
+                                                                <small class="text-muted">{{
+                                                                    performance.assessment_date.strftime('%Y-%m-%d')
+                                                                    }}</small>
+                                                            </div>
+                                                            <div>
+                                                                {% if performance.score %}
+                                                                <span
+                                                                    class="badge bg-{{ 'success' if performance.score >= 80 else 'warning' if performance.score >= 60 else 'danger' }}">
+                                                                    {{ "%.0f"|format(performance.score) }}%
+                                                                </span>
+                                                                {% endif %}
+                                                                {% if performance.grade %}
+                                                                <span class="badge bg-secondary">{{ performance.grade
+                                                                    }}</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- History Tab -->
+                        <div class="tab-pane fade" id="history" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12">
+                                    <h5 class="mb-3">Group Activity Timeline</h5>
+
+                                    {% if group_history %}
+                                    <div class="timeline">
+                                        {% for event in group_history %}
+                                        <div class="timeline-item">
+                                            <div
+                                                class="timeline-marker bg-{{ 'primary' if event.event_type == 'created' else 'success' if 'member' in event.event_type else 'info' if 'session' in event.event_type else 'secondary' }}">
+                                            </div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">{{ event.event_description }}</h6>
+                                                <p class="text-muted mb-1">
+                                                    <i class="fas fa-clock"></i> {{ event.created_at.strftime('%Y-%m-%d
+                                                    %H:%M') }}
+                                                    {% if event.created_by %}
+                                                    | <i class="fas fa-user"></i> {{ event.created_by.first_name }} {{
+                                                    event.created_by.last_name }}
+                                                    {% endif %}
+                                                </p>
+                                                <span class="badge bg-light text-dark">{{ event.event_type.replace('_',
+                                                    ' ').title() }}</span>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                                        <h5 class="text-muted">No activity history yet</h5>
+                                        <p class="text-muted">Group activities will appear here as they happen.</p>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    {% endfor %}
-                    {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-calendar fa-2x text-muted mb-2"></i>
-                        <p class="text-muted">No recent sessions.</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -192,7 +640,8 @@
                     </div>
                     <div class="mb-3">
                         <label for="member_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="member_notes" name="notes" rows="3"></textarea>
+                        <textarea class="form-control" id="member_notes" name="notes" rows="3"
+                            placeholder="Optional notes about this member..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -209,7 +658,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add Session</h5>
+                <h5 class="modal-title">Schedule New Session</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{{ url_for('add_group_session', group_id=group.id) }}">
@@ -224,7 +673,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="topic" class="form-label">Topic</label>
-                                <input type="text" class="form-control" id="topic" name="topic">
+                                <input type="text" class="form-control" id="topic" name="topic"
+                                    placeholder="Session topic...">
                             </div>
                         </div>
                     </div>
@@ -244,19 +694,232 @@
                     </div>
                     <div class="mb-3">
                         <label for="location" class="form-label">Location</label>
-                        <input type="text" class="form-control" id="location" name="location">
+                        <input type="text" class="form-control" id="location" name="location"
+                            placeholder="Session location...">
                     </div>
                     <div class="mb-3">
                         <label for="session_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="session_notes" name="notes" rows="3"></textarea>
+                        <textarea class="form-control" id="session_notes" name="notes" rows="3"
+                            placeholder="Session notes..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Add Session</button>
+                    <button type="submit" class="btn btn-success">Schedule Session</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Add Performance Modal -->
+<div class="modal fade" id="addPerformanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Student Assessment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_performance_record') }}">
+                <input type="hidden" name="group_id" value="{{ group.id }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="customer_id_perf" class="form-label">Student</label>
+                                <select class="form-select" id="customer_id_perf" name="customer_id" required>
+                                    <option value="">Select student...</option>
+                                    {% for member, customer in members %}
+                                    <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assessment_date" class="form-label">Assessment Date</label>
+                                <input type="date" class="form-control" id="assessment_date" name="assessment_date"
+                                    required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assessment_type" class="form-label">Assessment Type</label>
+                                <select class="form-select" id="assessment_type" name="assessment_type" required>
+                                    <option value="">Select type...</option>
+                                    <option value="quiz">Quiz</option>
+                                    <option value="exam">Exam</option>
+                                    <option value="project">Project</option>
+                                    <option value="participation">Participation</option>
+                                    <option value="assignment">Assignment</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="score" class="form-label">Score (%)</label>
+                                <input type="number" class="form-control" id="score" name="score" min="0" max="100"
+                                    step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="grade" class="form-label">Grade (Optional)</label>
+                        <input type="text" class="form-control" id="grade" name="grade" placeholder="A, B, C, etc.">
+                    </div>
+                    <div class="mb-3">
+                        <label for="perf_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="perf_notes" name="notes" rows="3"
+                            placeholder="Assessment notes and feedback..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Add Assessment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set minimum dates for session scheduling
+        const dateInputs = document.querySelectorAll('input[type="date"]');
+        const today = new Date().toISOString().split('T')[0];
+        dateInputs.forEach(input => {
+            if (input.name === 'session_date') {
+                input.min = today;
+            } else if (input.name === 'assessment_date') {
+                input.max = today;
+            }
+        });
+
+        // Progress Chart
+        const progressCtx = document.getElementById('progressChart');
+        if (progressCtx) {
+            const monthlyData = {{ monthly_progress|tojson }};
+            const labels = Object.keys(monthlyData).sort();
+            const data = labels.map(label => monthlyData[label]);
+
+            new Chart(progressCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sessions Completed',
+                        data: data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Monthly Session Progress'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+    .avatar-sm {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+        font-weight: bold;
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 10px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #e9ecef;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 25px;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: -25px;
+        top: 5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 2px #e9ecef;
+    }
+
+    .timeline-content {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #dee2e6;
+    }
+
+    .progress {
+        border-radius: 10px;
+    }
+
+    .card {
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .nav-tabs .nav-link.active {
+        background-color: transparent;
+        border-bottom: 3px solid #0d6efd;
+        color: #0d6efd;
+    }
+</style>
 {% endblock %}

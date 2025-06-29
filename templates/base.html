@@ -104,7 +104,7 @@
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('admin_users') }}">User Management</a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('admin_categories') }}">Course Categories</a>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_categories') }}">Group Categories</a>
                             </li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_reports') }}">Reports & Analytics</a>
                             </li>
@@ -118,19 +118,13 @@
                         </a>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('courses') }}">
-                            <i class="fas fa-graduation-cap"></i> Courses
-                        </a>
-                    </li>
 
-                    {% if current_user.role in ['instructor', 'admin'] %}
+
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('groups') }}">
                             <i class="fas fa-users"></i> Groups
                         </a>
                     </li>
-                    {% endif %}
 
                     {% if current_user.role in ['customer_service', 'admin'] %}
                     <li class="nav-item">

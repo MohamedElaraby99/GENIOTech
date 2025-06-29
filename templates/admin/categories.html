@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Course Categories - Admin{% endblock %}
+{% block title %}Group Categories - Admin{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -8,8 +8,8 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2><i class="fas fa-tags"></i> Course Categories</h2>
-                    <p class="text-muted">Manage course categories for better organization</p>
+                    <h2><i class="fas fa-tags"></i> Group Categories</h2>
+                    <p class="text-muted">Manage group categories for better organization</p>
                 </div>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                     <i class="fas fa-plus"></i> Add Category
@@ -35,7 +35,7 @@
                                     <th>ID</th>
                                     <th>Name</th>
                                     <th>Description</th>
-                                    <th>Courses</th>
+                                    <th>Groups</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
@@ -54,7 +54,8 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge bg-primary">{{ category.courses|length }} courses</span>
+                                        <span class="badge bg-primary">{{ category.category_groups|length }}
+                                            groups</span>
                                     </td>
                                     <td>{{ category.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td>
@@ -64,9 +65,11 @@
                                                 data-bs-target="#editCategoryModal{{ category.id }}">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            {% if category.courses|length == 0 %}
-                                            <button type="button" class="btn btn-outline-danger btn-sm"
-                                                onclick="deleteCategory({{ category.id }}, '{{ category.name }}')">
+                                            {% if category.category_groups|length == 0 %}
+                                            <button type="button"
+                                                class="btn btn-outline-danger btn-sm delete-category-btn"
+                                                data-category-id="{{ category.id }}"
+                                                data-category-name="{{ category.name }}">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                             {% endif %}
@@ -106,7 +109,7 @@
                     <div class="mb-3">
                         <label for="name" class="form-label">Category Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name" required
-                            placeholder="e.g., Programming, Design, Business">
+                            placeholder="e.g., Programming, Design, Language Learning">
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
@@ -159,15 +162,23 @@
 
 {% block scripts %}
 <script>
-    function deleteCategory(categoryId, categoryName) {
-        if (confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
-            // Create a form to delete the category
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/admin/categories/${categoryId}/delete`;
-            document.body.appendChild(form);
-            form.submit();
-        }
-    }
+    document.addEventListener('DOMContentLoaded', function () {
+        // Handle delete category buttons
+        document.querySelectorAll('.delete-category-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const categoryId = this.dataset.categoryId;
+                const categoryName = this.dataset.categoryName;
+
+                if (confirm(`Are you sure you want to delete the category "${categoryName}"?`)) {
+                    // Create a form to delete the category
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/admin/categories/${categoryId}/delete`;
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        });
+    });
 </script>
 {% endblock %}
