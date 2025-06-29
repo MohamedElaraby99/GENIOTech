@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block title %}{{ group.name }} - Sessions{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1">{{ group.name }} - Sessions</h4>
+                        <p class="mb-0 text-muted">{{ group.subject }} | Instructor: {{ group.instructor.first_name }}
+                            {{ group.instructor.last_name }}</p>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSessionModal">
+                            <i class="fas fa-plus"></i> Add Session
+                        </button>
+                        <a href="{{ url_for('group_detail', group_id=group.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Back to Group
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if sessions %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Topic</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in sessions %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ session.session_date.strftime('%Y-%m-%d') }}</strong><br>
+                                        <small class="text-muted">{{ session.session_date.strftime('%A') }}</small>
+                                    </td>
+                                    <td>
+                                        {{ session.start_time.strftime('%H:%M') }} - {{
+                                        session.end_time.strftime('%H:%M') }}
+                                    </td>
+                                    <td>
+                                        {% if session.topic %}
+                                        {{ session.topic }}
+                                        {% else %}
+                                        <span class="text-muted">No topic set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session.location %}
+                                        {{ session.location }}
+                                        {% else %}
+                                        <span class="text-muted">No location set</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if session.status == 'scheduled' %}
+                                        <span class="badge bg-primary">Scheduled</span>
+                                        {% elif session.status == 'completed' %}
+                                        <span class="badge bg-success">Completed</span>
+                                        {% elif session.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Cancelled</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ session.status.title() }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            {% if session.status == 'scheduled' %}
+                                            <a href="{{ url_for('group_session_attendance', session_id=session.id) }}"
+                                                class="btn btn-outline-primary" title="Take Attendance">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+                                            {% endif %}
+
+                                            <button class="btn btn-outline-info" title="View Details"
+                                                data-bs-toggle="modal" data-bs-target="#sessionModal{{ session.id }}">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+
+                                            {% if session.status == 'scheduled' %}
+                                            <button class="btn btn-outline-warning" title="Edit" data-bs-toggle="modal"
+                                                data-bs-target="#editSessionModal{{ session.id }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+
+                                            <button class="btn btn-outline-danger" title="Cancel Session"
+                                                onclick="cancelSession({{ session.id }})">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="py-5">
+                        <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
+                        <h4>No Sessions Scheduled</h4>
+                        <p class="text-muted">Start by adding your first session for this group.</p>
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSessionModal">
+                            <i class="fas fa-plus"></i> Add First Session
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Session Modal -->
+<div class="modal fade" id="addSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_group_session', group_id=group.id) }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="session_date" class="form-label">Date *</label>
+                                <input type="date" class="form-control" id="session_date" name="session_date" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="topic" class="form-label">Topic</label>
+                                <input type="text" class="form-control" id="topic" name="topic"
+                                    placeholder="Session topic">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_time" class="form-label">Start Time *</label>
+                                <input type="time" class="form-control" id="start_time" name="start_time" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_time" class="form-label">End Time *</label>
+                                <input type="time" class="form-control" id="end_time" name="end_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="location" name="location"
+                            placeholder="Session location">
+                    </div>
+                    <div class="mb-3">
+                        <label for="session_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="session_notes" name="notes" rows="3"
+                            placeholder="Session notes or preparation details"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Session Detail Modals -->
+{% for session in sessions %}
+<div class="modal fade" id="sessionModal{{ session.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Session Details - {{ session.session_date.strftime('%Y-%m-%d') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Date:</strong> {{ session.session_date.strftime('%A, %B %d, %Y') }}<br>
+                        <strong>Time:</strong> {{ session.start_time.strftime('%H:%M') }} - {{
+                        session.end_time.strftime('%H:%M') }}<br>
+                        <strong>Status:</strong>
+                        {% if session.status == 'scheduled' %}
+                        <span class="badge bg-primary">Scheduled</span>
+                        {% elif session.status == 'completed' %}
+                        <span class="badge bg-success">Completed</span>
+                        {% elif session.status == 'cancelled' %}
+                        <span class="badge bg-danger">Cancelled</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Topic:</strong> {{ session.topic or 'No topic set' }}<br>
+                        <strong>Location:</strong> {{ session.location or 'No location set' }}<br>
+                        <strong>Created:</strong> {{ session.created_at.strftime('%Y-%m-%d %H:%M') }}
+                    </div>
+                </div>
+                {% if session.notes %}
+                <div class="mt-3">
+                    <strong>Notes:</strong><br>
+                    {{ session.notes|nl2br|safe }}
+                </div>
+                {% endif %}
+
+                {% if session.attendance_records %}
+                <div class="mt-4">
+                    <h6>Attendance Record:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in session.attendance_records %}
+                                <tr>
+                                    <td>{{ attendance.customer.first_name }} {{ attendance.customer.last_name }}</td>
+                                    <td>
+                                        {% if attendance.status == 'present' %}
+                                        <span class="badge bg-success">Present</span>
+                                        {% elif attendance.status == 'absent' %}
+                                        <span class="badge bg-danger">Absent</span>
+                                        {% elif attendance.status == 'late' %}
+                                        <span class="badge bg-warning">Late</span>
+                                        {% elif attendance.status == 'excused' %}
+                                        <span class="badge bg-info">Excused</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ attendance.notes or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                {% if session.status == 'scheduled' %}
+                <a href="{{ url_for('group_session_attendance', session_id=session.id) }}" class="btn btn-primary">
+                    Take Attendance
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+    function cancelSession(sessionId) {
+        if (confirm('Are you sure you want to cancel this session?')) {
+            // For now, we'll just show an alert. You can implement the actual cancellation logic
+            alert('Session cancellation functionality will be implemented.');
+        }
+    }
+
+    // Set default date to today for new sessions
+    document.addEventListener('DOMContentLoaded', function () {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('session_date').value = today;
+    });
+</script>
+{% endblock %}

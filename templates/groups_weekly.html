@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Groups Schedule - CRM System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">
+                        <i class="fas fa-calendar-week me-2"></i>Weekly Groups Schedule
+                    </h2>
+                    <p class="text-muted mb-0">
+                        View all groups organized by day of the week
+                        <span class="badge bg-success ms-2">
+                            <i class="fas fa-calendar-day me-1"></i>Today: {{ current_day.title() }}
+                        </span>
+                    </p>
+                </div>
+                <div>
+                    <a href="{{ url_for('groups') }}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-list me-1"></i>List View
+                    </a>
+                    <a href="{{ url_for('add_group') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Group
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Schedule -->
+    <div class="row">
+        {% for day in days_of_week %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 {% if weekly_schedule[day]['is_today'] %}today-card{% endif %}">
+                <div
+                    class="card-header {% if weekly_schedule[day]['is_today'] %}bg-success today-header{% else %}bg-primary{% endif %} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-day me-2"></i>{{ weekly_schedule[day]['label'] }}
+                        </h5>
+                        {% if weekly_schedule[day]['is_today'] %}
+                        <span class="badge bg-light text-success fw-bold">
+                            <i class="fas fa-star me-1"></i>TODAY
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if weekly_schedule[day]['groups'] %}
+                    <div class="list-group list-group-flush">
+                        {% for group_info in weekly_schedule[day]['groups'] %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <a href="{{ url_for('group_detail', group_id=group_info.group.id) }}"
+                                            class="text-decoration-none">
+                                            {{ group_info.group.name }}
+                                        </a>
+                                    </h6>
+                                    <p class="mb-1 text-muted">{{ group_info.group.subject }}</p>
+
+                                    <!-- Time and Location -->
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="fas fa-clock text-primary me-1"></i>
+                                        <small class="text-muted">
+                                            {{ group_info.schedule.start_time.strftime('%I:%M %p') }} -
+                                            {{ group_info.schedule.end_time.strftime('%I:%M %p') }}
+                                        </small>
+                                    </div>
+
+                                    {% if group_info.schedule.location %}
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="fas fa-map-marker-alt text-secondary me-1"></i>
+                                        <small class="text-muted">{{ group_info.schedule.location }}</small>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Instructor -->
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="fas fa-user-tie text-info me-1"></i>
+                                        <small class="text-muted">{{ group_info.group.instructor.first_name }} {{
+                                            group_info.group.instructor.last_name }}</small>
+                                    </div>
+
+                                    <!-- Students Count -->
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-users text-success me-1"></i>
+                                        <small class="text-muted">{{ group_info.member_count }}/{{
+                                            group_info.group.max_students }} students</small>
+                                    </div>
+                                </div>
+
+                                <!-- Status Badge -->
+                                <div class="ms-2">
+                                    {% if group_info.group.status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% elif group_info.group.status == 'inactive' %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% elif group_info.group.status == 'completed' %}
+                                    <span class="badge bg-primary">Completed</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar for Capacity -->
+                            <div class="mt-2">
+                                {% set capacity_percentage = (group_info.member_count / group_info.group.max_students *
+                                100) | round(0) %}
+                                <div class="progress" style="height: 4px;">
+                                    <div class="progress-bar 
+                                        {% if capacity_percentage < 50 %}bg-success
+                                        {% elif capacity_percentage < 80 %}bg-warning
+                                        {% else %}bg-danger
+                                        {% endif %}" style="width: {{ capacity_percentage }}%">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-calendar-times text-muted fa-3x mb-3"></i>
+                        <p class="text-muted mb-0">No groups scheduled for this day</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Weekly Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% set total_groups = 0 %}
+                        {% set total_students = 0 %}
+                        {% for day in days_of_week %}
+                        {% set total_groups = total_groups + weekly_schedule[day]['groups']|length %}
+                        {% for group_info in weekly_schedule[day]['groups'] %}
+                        {% set total_students = total_students + group_info.member_count %}
+                        {% endfor %}
+                        {% endfor %}
+
+                        <div class="col-md-3 col-6">
+                            <div class="text-center">
+                                <div class="h3 text-primary mb-1">{{ total_groups }}</div>
+                                <small class="text-muted">Total Groups</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="text-center">
+                                <div class="h3 text-success mb-1">{{ total_students }}</div>
+                                <small class="text-muted">Total Students</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="text-center">
+                                <div class="h3 text-info mb-1">{{ days_of_week|length }}</div>
+                                <small class="text-muted">Days Covered</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="text-center">
+                                <div class="h3 text-warning mb-1">{{ (total_groups / days_of_week|length * 100 /
+                                    100)|round(1) }}</div>
+                                <small class="text-muted">Avg Groups/Day</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+    .card-header {
+        background: linear-gradient(135deg, #007bff, #0056b3);
+        border-bottom: none;
+    }
+
+    .today-header {
+        background: linear-gradient(135deg, #28a745, #20c997) !important;
+        border-bottom: none;
+        box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+    }
+
+    .today-card {
+        border: 2px solid #28a745;
+        box-shadow: 0 8px 20px rgba(40, 167, 69, 0.2);
+        transform: translateY(-2px);
+        transition: all 0.3s ease;
+    }
+
+    .today-card:hover {
+        box-shadow: 0 12px 24px rgba(40, 167, 69, 0.3);
+        transform: translateY(-4px);
+    }
+
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid #dee2e6;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .list-group-item:first-child {
+        border-top: none;
+    }
+
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .progress {
+        background-color: #e9ecef;
+        border-radius: 2px;
+    }
+
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+
+    .h3 {
+        font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+        .col-lg-4 {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}

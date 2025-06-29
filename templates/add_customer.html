@@ -44,26 +44,39 @@
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="email" class="form-label">Email Address <span
-                                    class="text-danger">*</span></label>
-                            <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="phone" name="phone"
+                                        placeholder="01234567890">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone2" class="form-label">Phone Number 2</label>
+                                    <input type="tel" class="form-control" id="phone2" name="phone2"
+                                        placeholder="01234567890">
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
-                            <label for="phone" class="form-label">Phone Number</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" placeholder="01234567890">
+                            <label for="age" class="form-label">Age</label>
+                            <input type="number" class="form-control" id="age" name="age" placeholder="Enter age"
+                                min="1" max="120">
                         </div>
 
                         <div class="mb-3">
-                            <label for="assigned_instructor_id" class="form-label">Assigned Instructor</label>
-                            <select class="form-select" id="assigned_instructor_id" name="assigned_instructor_id">
-                                <option value="">Select an instructor (optional)</option>
+                            <label for="assigned_instructor_ids" class="form-label">Assigned Instructors</label>
+                            <select class="form-select" id="assigned_instructor_ids" name="assigned_instructor_ids"
+                                multiple size="4">
                                 {% for instructor in instructors %}
                                 <option value="{{ instructor.id }}">{{ instructor.first_name }} {{ instructor.last_name
                                     }}</option>
                                 {% endfor %}
                             </select>
+                            <div class="form-text">Hold Ctrl (or Cmd on Mac) to select multiple instructors</div>
                         </div>
 
                         <div class="mb-3">

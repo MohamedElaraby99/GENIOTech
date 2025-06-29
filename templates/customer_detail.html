@@ -31,20 +31,25 @@
                                 <div>
                                     <h3 class="mb-1">{{ customer.first_name }} {{ customer.last_name }}</h3>
                                     <p class="text-muted mb-1">
-                                        <i class="fas fa-envelope"></i> {{ customer.email }}
                                         {% if customer.phone %}
-                                        | <i class="fas fa-phone"></i> {{ customer.phone }}
+                                        <i class="fas fa-phone"></i> {{ customer.phone }}
+                                        {% endif %}
+                                        {% if customer.phone2 %}
+                                        {% if customer.phone %} | {% endif %}<i class="fas fa-phone"></i> {{
+                                        customer.phone2 }}
                                         {% endif %}
                                     </p>
                                     <span
                                         class="badge bg-{{ 'success' if customer.status == 'active' else 'warning' if customer.status == 'needs_follow_up' else 'danger' if customer.status == 'no_show' else 'secondary' }}">
                                         {{ customer.status.replace('_', ' ').title() }}
                                     </span>
-                                    {% if customer.assigned_instructor %}
-                                    <span class="badge bg-info ms-2">
-                                        <i class="fas fa-user"></i> {{ customer.assigned_instructor.first_name }} {{
-                                        customer.assigned_instructor.last_name }}
+                                    {% if customer.assigned_instructors %}
+                                    {% for instructor in customer.assigned_instructors %}
+                                    <span class="badge bg-info ms-1">
+                                        <i class="fas fa-user"></i> {{ instructor.first_name }} {{ instructor.last_name
+                                        }}
                                     </span>
+                                    {% endfor %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -72,36 +77,35 @@
         <!-- Left Column -->
         <div class="col-md-8">
             <!-- Recent Notes -->
+            <!-- Courses -->
             <div class="card shadow mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0"><i class="fas fa-sticky-note"></i> Notes & Communication</h5>
-                    <button class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus"></i> Add Note
-                    </button>
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-book"></i> Courses</h5>
                 </div>
                 <div class="card-body">
-                    {% if notes %}
-                    {% for note in notes %}
-                    <div class="note-item border-bottom pb-3 mb-3">
+                    {% if courses %}
+                    {% for course in courses %}
+                    <div class="course-item border-bottom pb-2 mb-2">
                         <div class="d-flex justify-content-between align-items-start">
-                            <div class="flex-grow-1">
-                                <div class="d-flex align-items-center mb-2">
-                                    <strong>{{ note.created_by.first_name }} {{ note.created_by.last_name }}</strong>
-                                    {% if note.is_internal %}
-                                    <span class="badge bg-warning ms-2">Internal</span>
-                                    {% endif %}
-                                    <small class="text-muted ms-2">{{ note.created_at.strftime('%Y-%m-%d %H:%M')
-                                        }}</small>
-                                </div>
-                                <p class="mb-0">{{ note.content }}</p>
+                            <div>
+                                <h6 class="mb-1">{{ course.title }}</h6>
+                                <small class="text-muted">Created: {{ course.created_at.strftime('%Y-%m-%d') }}</small>
                             </div>
+                            <span
+                                class="badge bg-{{ 'warning' if course.status == 'open' else 'info' if course.status == 'in_progress' else 'success' }}">
+                                {{ course.status.replace('_', ' ').title() }}
+                            </span>
                         </div>
+                        {% if course.description %}
+                        <p class="mb-0 mt-1 text-muted small">{{ course.description[:100] }}{% if
+                            course.description|length > 100 %}...{% endif %}</p>
+                        {% endif %}
                     </div>
                     {% endfor %}
                     {% else %}
-                    <div class="text-center text-muted py-4">
-                        <i class="fas fa-sticky-note fa-3x mb-3"></i>
-                        <p>No notes yet. Add your first note to start tracking communication.</p>
+                    <div class="text-center text-muted py-3">
+                        <i class="fas fa-book fa-2x mb-2"></i>
+                        <p class="mb-0">No courses enrolled</p>
                     </div>
                     {% endif %}
                 </div>
@@ -174,14 +178,22 @@
                     <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> Customer Information</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-2">
-                        <div class="col-4"><strong>Email:</strong></div>
-                        <div class="col-8">{{ customer.email }}</div>
-                    </div>
                     {% if customer.phone %}
                     <div class="row mb-2">
                         <div class="col-4"><strong>Phone:</strong></div>
                         <div class="col-8">{{ customer.phone }}</div>
+                    </div>
+                    {% endif %}
+                    {% if customer.phone2 %}
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Phone 2:</strong></div>
+                        <div class="col-8">{{ customer.phone2 }}</div>
+                    </div>
+                    {% endif %}
+                    {% if customer.age %}
+                    <div class="row mb-2">
+                        <div class="col-4"><strong>Age:</strong></div>
+                        <div class="col-8">{{ customer.age }} years old</div>
                     </div>
                     {% endif %}
                     <div class="row mb-2">
@@ -194,10 +206,13 @@
                         </div>
                     </div>
                     <div class="row mb-2">
-                        <div class="col-4"><strong>Instructor:</strong></div>
+                        <div class="col-4"><strong>Instructors:</strong></div>
                         <div class="col-8">
-                            {% if customer.assigned_instructor %}
-                            {{ customer.assigned_instructor.first_name }} {{ customer.assigned_instructor.last_name }}
+                            {% if customer.assigned_instructors %}
+                            {% for instructor in customer.assigned_instructors %}
+                            <span class="badge bg-info me-1">{{ instructor.first_name }} {{ instructor.last_name
+                                }}</span>
+                            {% endfor %}
                             {% else %}
                             <span class="text-muted">Unassigned</span>
                             {% endif %}
@@ -250,34 +265,36 @@
             </div>
 
             <!-- Courses -->
-            <div class="card shadow">
-                <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-book"></i> Courses</h5>
+            <div class="card shadow mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="fas fa-sticky-note"></i> Notes & Communication</h5>
+                    <button class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus"></i> Add Note
+                    </button>
                 </div>
                 <div class="card-body">
-                    {% if courses %}
-                    {% for course in courses %}
-                    <div class="course-item border-bottom pb-2 mb-2">
+                    {% if notes %}
+                    {% for note in notes %}
+                    <div class="note-item border-bottom pb-3 mb-3">
                         <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">{{ course.title }}</h6>
-                                <small class="text-muted">Created: {{ course.created_at.strftime('%Y-%m-%d') }}</small>
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    <strong>{{ note.created_by.first_name }} {{ note.created_by.last_name }}</strong>
+                                    {% if note.is_internal %}
+                                    <span class="badge bg-warning ms-2">Internal</span>
+                                    {% endif %}
+                                    <small class="text-muted ms-2">{{ note.created_at.strftime('%Y-%m-%d %H:%M')
+                                        }}</small>
+                                </div>
+                                <p class="mb-0">{{ note.content }}</p>
                             </div>
-                            <span
-                                class="badge bg-{{ 'warning' if course.status == 'open' else 'info' if course.status == 'in_progress' else 'success' }}">
-                                {{ course.status.replace('_', ' ').title() }}
-                            </span>
                         </div>
-                        {% if course.description %}
-                        <p class="mb-0 mt-1 text-muted small">{{ course.description[:100] }}{% if
-                            course.description|length > 100 %}...{% endif %}</p>
-                        {% endif %}
                     </div>
                     {% endfor %}
                     {% else %}
-                    <div class="text-center text-muted py-3">
-                        <i class="fas fa-book fa-2x mb-2"></i>
-                        <p class="mb-0">No courses enrolled</p>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-sticky-note fa-3x mb-3"></i>
+                        <p>No notes yet. Add your first note to start tracking communication.</p>
                     </div>
                     {% endif %}
                 </div>

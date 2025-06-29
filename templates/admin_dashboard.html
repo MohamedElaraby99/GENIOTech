@@ -108,7 +108,7 @@
                 <div class="card-header d-flex align-items-center">
                     <i class="fas fa-bolt text-primary me-2"></i>
                     <h5 class="mb-0">Quick Actions</h5>
-                    <span class="badge bg-primary ms-auto">4 Available</span>
+                    <span class="badge bg-primary ms-auto">5 Available</span>
                 </div>
                 <div class="card-body quick-actions">
                     <div class="row g-3">
@@ -130,6 +130,13 @@
                         <div class="col-xl-3 col-lg-6 col-md-6">
                             <a href="{{ url_for('admin_reports') }}" class="btn btn-warning w-100">
                                 <i class="fas fa-chart-bar me-2"></i>View Reports
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-3">
+                        <div class="col-xl-3 col-lg-6 col-md-6">
+                            <a href="{{ url_for('groups_weekly') }}" class="btn btn-secondary w-100">
+                                <i class="fas fa-calendar-week me-2"></i>Weekly Schedule
                             </a>
                         </div>
                     </div>

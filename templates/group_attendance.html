@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance - {{ session.group.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-1">Record Attendance</h4>
+                    <p class="mb-0 text-muted">
+                        {{ session.group.name }} - {{ session.session_date.strftime('%A, %B %d, %Y') }}
+                        ({{ session.start_time.strftime('%H:%M') }} - {{ session.end_time.strftime('%H:%M') }})
+                    </p>
+                    {% if session.topic %}
+                    <p class="mb-0 text-muted">Topic: {{ session.topic }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle"></i> Mark Attendance
+                    </h5>
+                    <div class="text-muted">
+                        Total Members: {{ members|length }}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if members %}
+                    <form method="POST">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th width="30%">Student Name</th>
+                                        <th width="25%">Email</th>
+                                        <th width="20%">Attendance Status</th>
+                                        <th width="25%">Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for member, customer in members %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div
+                                                    class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                    {{ customer.first_name[0] }}{{ customer.last_name[0] }}
+                                                </div>
+                                                <div>
+                                                    <strong>{{ customer.first_name }} {{ customer.last_name }}</strong>
+                                                    <br><small class="text-muted">Joined: {{
+                                                        member.joined_date.strftime('%Y-%m-%d') }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ customer.phone or '-' }}</td>
+                                        <td>
+                                            <input type="hidden" name="member_ids[]" value="{{ customer.id }}">
+                                            <select name="statuses[]"
+                                                class="form-select form-select-sm attendance-status"
+                                                data-member-id="{{ customer.id }}" required>
+                                                {% set existing = existing_attendance.get(customer.id) %}
+                                                <option value="present" {% if existing and existing.status=='present'
+                                                    %}selected{% endif %}>
+                                                    ✓ Present
+                                                </option>
+                                                <option value="absent" {% if existing and existing.status=='absent'
+                                                    %}selected{% endif %}>
+                                                    ✗ Absent
+                                                </option>
+                                                <option value="late" {% if existing and existing.status=='late'
+                                                    %}selected{% endif %}>
+                                                    ⏰ Late
+                                                </option>
+                                                <option value="excused" {% if existing and existing.status=='excused'
+                                                    %}selected{% endif %}>
+                                                    📝 Excused
+                                                </option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <textarea name="notes[]" class="form-control form-control-sm" rows="2"
+                                                placeholder="Optional notes">{% if existing %}{{ existing.notes }}{% endif %}</textarea>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Quick Actions</h6>
+                                        <div class="btn-group-vertical d-grid gap-2">
+                                            <button type="button" class="btn btn-outline-success btn-sm"
+                                                onclick="markAll('present')">
+                                                ✓ Mark All Present
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                onclick="markAll('absent')">
+                                                ✗ Mark All Absent
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Attendance Summary</h6>
+                                        <div id="attendance-summary">
+                                            <div class="row text-center">
+                                                <div class="col-3">
+                                                    <div class="h4 mb-0" id="present-count">0</div>
+                                                    <small>Present</small>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="h4 mb-0" id="absent-count">0</div>
+                                                    <small>Absent</small>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="h4 mb-0" id="late-count">0</div>
+                                                    <small>Late</small>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="h4 mb-0" id="excused-count">0</div>
+                                                    <small>Excused</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('group_sessions', group_id=session.group_id) }}"
+                                class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Sessions
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Save Attendance
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-users-slash fa-4x text-muted mb-3"></i>
+                        <h4>No Members in Group</h4>
+                        <p class="text-muted">This group doesn't have any members yet. Add members to record attendance.
+                        </p>
+                        <a href="{{ url_for('group_detail', group_id=session.group_id) }}" class="btn btn-primary">
+                            <i class="fas fa-user-plus"></i> Add Members
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-sm {
+        width: 35px;
+        height: 35px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .attendance-status {
+        min-width: 120px;
+    }
+
+    .attendance-status option[value="present"] {
+        color: #28a745;
+    }
+
+    .attendance-status option[value="absent"] {
+        color: #dc3545;
+    }
+
+    .attendance-status option[value="late"] {
+        color: #ffc107;
+    }
+
+    .attendance-status option[value="excused"] {
+        color: #17a2b8;
+    }
+</style>
+
+<script>
+    function markAll(status) {
+        const selects = document.querySelectorAll('.attendance-status');
+        selects.forEach(select => {
+            select.value = status;
+        });
+        updateSummary();
+    }
+
+    function updateSummary() {
+        const statuses = {
+            present: 0,
+            absent: 0,
+            late: 0,
+            excused: 0
+        };
+
+        document.querySelectorAll('.attendance-status').forEach(select => {
+            if (select.value) {
+                statuses[select.value]++;
+            }
+        });
+
+        document.getElementById('present-count').textContent = statuses.present;
+        document.getElementById('absent-count').textContent = statuses.absent;
+        document.getElementById('late-count').textContent = statuses.late;
+        document.getElementById('excused-count').textContent = statuses.excused;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add event listeners to all attendance selects
+        document.querySelectorAll('.attendance-status').forEach(select => {
+            select.addEventListener('change', updateSummary);
+        });
+
+        // Initial summary calculation
+        updateSummary();
+
+        // Auto-save warning
+        let hasUnsavedChanges = false;
+        document.querySelectorAll('.attendance-status, textarea[name="notes[]"]').forEach(element => {
+            element.addEventListener('change', function () {
+                hasUnsavedChanges = true;
+            });
+        });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved attendance changes. Are you sure you want to leave?';
+            }
+        });
+
+        // Clear unsaved changes flag on form submit
+        document.querySelector('form').addEventListener('submit', function () {
+            hasUnsavedChanges = false;
+        });
+    });
+</script>
+{% endblock %}

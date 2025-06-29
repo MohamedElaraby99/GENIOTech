@@ -48,18 +48,29 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
+# Association table for many-to-many relationship between customers and instructors
+customer_instructor_association = db.Table('customer_instructor',
+    db.Column('customer_id', db.Integer, db.ForeignKey('customer.id'), primary_key=True),
+    db.Column('instructor_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('assigned_at', db.DateTime, default=datetime.utcnow)
+)
+
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
     phone = db.Column(db.String(20))
+    phone2 = db.Column(db.String(20))  # Second phone number
+    age = db.Column(db.Integer)  # Customer age
     status = db.Column(db.String(20), default='active')  # active, inactive, needs_follow_up, no_show
-    assigned_instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     initial_notes = db.Column(db.Text)
     
-    assigned_instructor = db.relationship('User', backref='assigned_customers')
+    # Many-to-many relationship with instructors
+    assigned_instructors = db.relationship('User', 
+                                         secondary=customer_instructor_association,
+                                         backref=db.backref('assigned_customers', lazy='dynamic'),
+                                         lazy='dynamic')
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -153,6 +164,71 @@ class Enrollment(db.Model):
     
     customer = db.relationship('Customer', backref='enrollments')
     course = db.relationship('GeneralCourse', backref='enrollments')
+
+# Group Management Models
+class Group(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    instructor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('course_category.id'))
+    max_students = db.Column(db.Integer, default=15)
+    status = db.Column(db.String(20), default='active')  # active, inactive, completed
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text)
+    
+    instructor = db.relationship('User', backref='instructor_groups')
+    category = db.relationship('CourseCategory', backref='category_groups')
+
+class GroupSchedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    day_of_week = db.Column(db.String(10), nullable=False)  # monday, tuesday, etc.
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    location = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    group = db.relationship('Group', backref='schedules')
+
+class GroupMember(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    joined_date = db.Column(db.DateTime, default=datetime.utcnow)
+    status = db.Column(db.String(20), default='active')  # active, inactive, completed, dropped
+    notes = db.Column(db.Text)
+    
+    group = db.relationship('Group', backref='members')
+    customer = db.relationship('Customer', backref='group_memberships')
+
+class GroupSession(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=False)
+    session_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    status = db.Column(db.String(20), default='scheduled')  # scheduled, completed, cancelled
+    topic = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    location = db.Column(db.String(100))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    group = db.relationship('Group', backref='group_sessions')
+
+class GroupAttendance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    group_session_id = db.Column(db.Integer, db.ForeignKey('group_session.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    status = db.Column(db.String(20), default='present')  # present, absent, late, excused
+    notes = db.Column(db.Text)
+    recorded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    group_session = db.relationship('GroupSession', backref='attendance_records')
+    customer = db.relationship('Customer', backref='attendance_records')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -268,9 +344,14 @@ def admin_add_user():
             last_name=request.form['last_name']
         )
         db.session.add(user)
-        db.session.commit()
-        flash('User added successfully', 'success')
-        return redirect(url_for('admin_users'))
+        
+        try:
+            db.session.commit()
+            flash('User added successfully', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error adding user: Username or email may already exist', 'error')
     
     return render_template('admin/add_user.html')
 
@@ -377,25 +458,72 @@ def admin_reports():
 @app.route('/customers')
 @login_required
 def customers():
+    # Get base query based on user role
     if current_user.role == 'instructor':
-        customers = Customer.query.filter_by(assigned_instructor_id=current_user.id).all()
+        query = Customer.query.filter(Customer.assigned_instructors.contains(current_user))
     else:
-        customers = Customer.query.all()
-    return render_template('customers.html', customers=customers)
+        query = Customer.query
+    
+    # Apply age filtering
+    age_filter = request.args.get('age_filter')
+    min_age = request.args.get('min_age')
+    max_age = request.args.get('max_age')
+    
+    if age_filter:
+        if age_filter == 'under_18':
+            query = query.filter(Customer.age < 18)
+        elif age_filter == '18_25':
+            query = query.filter(Customer.age >= 18, Customer.age <= 25)
+        elif age_filter == '26_35':
+            query = query.filter(Customer.age >= 26, Customer.age <= 35)
+        elif age_filter == '36_50':
+            query = query.filter(Customer.age >= 36, Customer.age <= 50)
+        elif age_filter == 'over_50':
+            query = query.filter(Customer.age > 50)
+        elif age_filter == 'unknown':
+            query = query.filter(Customer.age.is_(None))
+    elif min_age or max_age:
+        # Custom age range
+        if min_age and min_age.isdigit():
+            query = query.filter(Customer.age >= int(min_age))
+        if max_age and max_age.isdigit():
+            query = query.filter(Customer.age <= int(max_age))
+    
+    customers = query.all()
+    
+    return render_template('customers.html', customers=customers, 
+                         age_filter=age_filter, min_age=min_age, max_age=max_age)
 
 @app.route('/customers/add', methods=['GET', 'POST'])
 @login_required
 def add_customer():
     if request.method == 'POST':
+        # Handle age conversion
+        age = None
+        age_input = request.form.get('age', '').strip()
+        if age_input and age_input.isdigit():
+            age = int(age_input)
+        
         customer = Customer(
             first_name=request.form['first_name'],
             last_name=request.form['last_name'],
-            email=request.form['email'],
             phone=request.form.get('phone', ''),
-            assigned_instructor_id=request.form.get('assigned_instructor_id') or None,
+            phone2=request.form.get('phone2', ''),
+            age=age,
             initial_notes=request.form.get('notes', '')
         )
         db.session.add(customer)
+        db.session.flush()  # Get the customer ID
+        
+        # Handle multiple instructor assignments
+        instructor_ids = request.form.getlist('assigned_instructor_ids')
+        if instructor_ids:
+            for instructor_id in instructor_ids:
+                if instructor_id:  # Skip empty values
+                    instructor = User.query.get(instructor_id)
+                    if instructor and instructor.role == 'instructor':
+                        customer.assigned_instructors.append(instructor)
+        
         db.session.commit()
         flash('Customer added successfully', 'success')
         return redirect(url_for('customers'))
@@ -409,20 +537,38 @@ def edit_customer(customer_id):
     customer = Customer.query.get_or_404(customer_id)
     
     # Check permissions
-    if current_user.role == 'instructor' and customer.assigned_instructor_id != current_user.id:
+    if current_user.role == 'instructor' and current_user not in customer.assigned_instructors:
         flash('Access denied', 'error')
         return redirect(url_for('customers'))
     
     if request.method == 'POST':
         customer.first_name = request.form['first_name']
         customer.last_name = request.form['last_name']
-        customer.email = request.form['email']
         customer.phone = request.form.get('phone', '')
+        customer.phone2 = request.form.get('phone2', '')
+        
+        # Handle age conversion
+        age_input = request.form.get('age', '').strip()
+        if age_input and age_input.isdigit():
+            customer.age = int(age_input)
+        else:
+            customer.age = None
+            
         customer.status = request.form['status']
         
         # Only admins and customer service can change instructor assignment
         if current_user.role in ['admin', 'customer_service']:
-            customer.assigned_instructor_id = request.form.get('assigned_instructor_id') or None
+            # Clear existing assignments
+            customer.assigned_instructors = []
+            
+            # Add new assignments
+            instructor_ids = request.form.getlist('assigned_instructor_ids')
+            if instructor_ids:
+                for instructor_id in instructor_ids:
+                    if instructor_id:  # Skip empty values
+                        instructor = User.query.get(instructor_id)
+                        if instructor and instructor.role == 'instructor':
+                            customer.assigned_instructors.append(instructor)
         
         try:
             db.session.commit()
@@ -430,7 +576,7 @@ def edit_customer(customer_id):
             return redirect(url_for('customers'))
         except Exception as e:
             db.session.rollback()
-            flash('Error updating customer: Email may already exist', 'error')
+            flash('Error updating customer', 'error')
     
     instructors = User.query.filter_by(role='instructor').all()
     return render_template('edit_customer.html', customer=customer, instructors=instructors)
@@ -441,7 +587,7 @@ def add_customer_note(customer_id):
     customer = Customer.query.get_or_404(customer_id)
     
     # Check permissions
-    if current_user.role == 'instructor' and customer.assigned_instructor_id != current_user.id:
+    if current_user.role == 'instructor' and current_user not in customer.assigned_instructors:
         flash('Access denied', 'error')
         return redirect(url_for('customers'))
     
@@ -481,7 +627,7 @@ def send_whatsapp_campaign():
     if current_user.role == 'instructor':
         customers = Customer.query.filter(
             Customer.id.in_(selected_customers),
-            Customer.assigned_instructor_id == current_user.id
+            Customer.assigned_instructors.contains(current_user)
         ).all()
     else:
         customers = Customer.query.filter(Customer.id.in_(selected_customers)).all()
@@ -518,7 +664,7 @@ def customer_detail(customer_id):
     customer = Customer.query.get_or_404(customer_id)
     
     # Check permissions
-    if current_user.role == 'instructor' and customer.assigned_instructor_id != current_user.id:
+    if current_user.role == 'instructor' and current_user not in customer.assigned_instructors:
         flash('Access denied', 'error')
         return redirect(url_for('customers'))
     
@@ -539,8 +685,9 @@ def download_customer_template():
     data = {
         'first_name': ['محمد', 'فاطمة', 'أحمد'],
         'last_name': ['أحمد', 'سالم', 'محمود'],
-        'email': ['mohammed@example.com', 'fatima@example.com', 'ahmed@example.com'],
         'phone': ['+966501234567', '+966507654321', '+966509876543'],
+        'phone2': ['+966501234568', '', '+966509876544'],
+        'age': [25, 30, 22],
         'status': ['active', 'active', 'needs_follow_up'],
         'assigned_instructor_email': ['instructor@example.com', '', 'instructor@example.com'],
         'initial_notes': ['ملاحظات أولية للعميل', 'عميل مهتم بدورات البرمجة', 'يحتاج متابعة خاصة']
@@ -686,13 +833,13 @@ def import_customers():
         df.columns = df.columns.str.strip()
         
         # Validate required columns
-        required_columns = ['first_name', 'last_name', 'email']
+        required_columns = ['first_name', 'last_name']
         missing_columns = [col for col in required_columns if col not in df.columns]
         
         if missing_columns:
             flash(f'الأعمدة التالية مطلوبة ومفقودة: {", ".join(missing_columns)}', 'error')
             flash(f'الأعمدة الموجودة في الملف: {", ".join(found_columns)}', 'info')
-            flash('يرجى التأكد من أن أسماء الأعمدة مطابقة تماماً: first_name, last_name, email', 'info')
+            flash('يرجى التأكد من أن أسماء الأعمدة مطابقة تماماً: first_name, last_name', 'info')
             return redirect(request.url)
         
         # Import statistics
@@ -703,14 +850,7 @@ def import_customers():
         for index, row in df.iterrows():
             try:
                 # Skip empty rows
-                if pd.isna(row['first_name']) or pd.isna(row['last_name']) or pd.isna(row['email']):
-                    skipped_count += 1
-                    continue
-                
-                # Check if customer already exists
-                existing_customer = Customer.query.filter_by(email=row['email']).first()
-                if existing_customer:
-                    error_messages.append(f'الصف {index + 2}: العميل بالبريد الإلكتروني {row["email"]} موجود مسبقاً')
+                if pd.isna(row['first_name']) or pd.isna(row['last_name']):
                     skipped_count += 1
                     continue
                 
@@ -732,18 +872,34 @@ def import_customers():
                 if status not in valid_statuses:
                     status = 'active'
                 
+                # Handle age conversion
+                age = None
+                if not pd.isna(row.get('age')):
+                    try:
+                        age_value = row.get('age')
+                        if isinstance(age_value, (int, float)) and age_value > 0:
+                            age = int(age_value)
+                    except (ValueError, TypeError):
+                        pass  # Keep age as None if conversion fails
+                
                 # Create customer
                 customer = Customer(
                     first_name=str(row['first_name']).strip(),
                     last_name=str(row['last_name']).strip(),
-                    email=str(row['email']).strip().lower(),
                     phone=str(row.get('phone', '')).strip() if not pd.isna(row.get('phone')) else '',
+                    phone2=str(row.get('phone2', '')).strip() if not pd.isna(row.get('phone2')) else '',
+                    age=age,
                     status=status,
-                    assigned_instructor_id=assigned_instructor.id if assigned_instructor else None,
                     initial_notes=str(row.get('initial_notes', '')).strip() if not pd.isna(row.get('initial_notes')) else ''
                 )
                 
                 db.session.add(customer)
+                db.session.flush()  # Get the customer ID
+                
+                # Assign instructor if found
+                if assigned_instructor:
+                    customer.assigned_instructors.append(assigned_instructor)
+                
                 imported_count += 1
                 
             except Exception as e:
@@ -1153,10 +1309,11 @@ def export_customers_csv():
             'ID': customer.id,
             'First Name': customer.first_name,
             'Last Name': customer.last_name,
-            'Email': customer.email,
             'Phone': customer.phone or '',
+            'Phone 2': customer.phone2 or '',
+            'Age': customer.age or '',
             'Status': customer.status,
-            'Assigned Instructor': f"{customer.assigned_instructor.first_name} {customer.assigned_instructor.last_name}" if customer.assigned_instructor else 'Unassigned',
+            'Assigned Instructors': ', '.join([f"{instructor.first_name} {instructor.last_name}" for instructor in customer.assigned_instructors]) if customer.assigned_instructors else 'Unassigned',
             'Created Date': customer.created_at.strftime('%Y-%m-%d'),
             'Notes': customer.initial_notes or '',
             'Total Sessions': len(customer.sessions),
@@ -1192,7 +1349,7 @@ def export_tickets_excel():
             'Title': ticket.title,
             'Description': ticket.description[:100] + '...' if len(ticket.description) > 100 else ticket.description,
             'Customer': f"{ticket.customer.first_name} {ticket.customer.last_name}",
-            'Customer Email': ticket.customer.email,
+            'Customer Phone': ticket.customer.phone or '',
             'Assigned To': f"{ticket.assigned_to.first_name} {ticket.assigned_to.last_name}" if ticket.assigned_to else 'Unassigned',
             'Status': ticket.status,
             'Priority': ticket.priority,
@@ -1483,6 +1640,323 @@ def analytics_dashboard():
     
     return render_template('admin/analytics.html', chart_data=chart_data, stats=stats)
 
+# Group Management Routes
+@app.route('/groups')
+@login_required
+def groups():
+    if current_user.role == 'instructor':
+        groups = Group.query.filter_by(instructor_id=current_user.id).all()
+    else:
+        groups = Group.query.all()
+    
+    # Add member count to each group
+    for group in groups:
+        group.member_count = GroupMember.query.filter_by(group_id=group.id, status='active').count()
+    
+    return render_template('groups.html', groups=groups)
+
+@app.route('/groups/weekly')
+@login_required
+def groups_weekly():
+    """Show groups organized by day of the week"""
+    if current_user.role == 'instructor':
+        groups = Group.query.filter_by(instructor_id=current_user.id, status='active').all()
+    else:
+        groups = Group.query.filter_by(status='active').all()
+    
+    # Define days of the week
+    days_of_week = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    day_labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    
+    # Get current day
+    from datetime import datetime
+    current_day = datetime.now().strftime('%A').lower()  # Get current day name in lowercase
+    
+    # Organize groups by day
+    weekly_schedule = {}
+    for i, day in enumerate(days_of_week):
+        weekly_schedule[day] = {
+            'label': day_labels[i],
+            'groups': [],
+            'is_today': day == current_day  # Mark if this is today
+        }
+    
+    # Group schedules by day with group information
+    for group in groups:
+        for schedule in group.schedules:
+            day = schedule.day_of_week.lower()
+            if day in weekly_schedule:
+                # Add member count to group
+                group.member_count = GroupMember.query.filter_by(group_id=group.id, status='active').count()
+                
+                group_info = {
+                    'group': group,
+                    'schedule': schedule,
+                    'member_count': group.member_count
+                }
+                weekly_schedule[day]['groups'].append(group_info)
+    
+    # Sort groups by start time for each day
+    for day in weekly_schedule:
+        weekly_schedule[day]['groups'].sort(key=lambda x: x['schedule'].start_time)
+    
+    return render_template('groups_weekly.html', weekly_schedule=weekly_schedule, days_of_week=days_of_week, current_day=current_day)
+
+@app.route('/groups/add', methods=['GET', 'POST'])
+@login_required
+def add_group():
+    if request.method == 'POST':
+        group = Group(
+            name=request.form['name'],
+            subject=request.form['subject'],
+            description=request.form.get('description', ''),
+            instructor_id=request.form['instructor_id'],
+            category_id=request.form.get('category_id') if request.form.get('category_id') else None,
+            max_students=int(request.form.get('max_students', 15)),
+            start_date=datetime.strptime(request.form['start_date'], '%Y-%m-%d').date(),
+            end_date=datetime.strptime(request.form['end_date'], '%Y-%m-%d').date() if request.form.get('end_date') else None,
+            notes=request.form.get('notes', '')
+        )
+        
+        db.session.add(group)
+        db.session.flush()  # Get the group ID
+        
+        # Add schedules
+        days = request.form.getlist('days[]')
+        start_times = request.form.getlist('start_times[]')
+        end_times = request.form.getlist('end_times[]')
+        locations = request.form.getlist('locations[]')
+        
+        for i, day in enumerate(days):
+            if day and i < len(start_times) and i < len(end_times):
+                schedule = GroupSchedule(
+                    group_id=group.id,
+                    day_of_week=day,
+                    start_time=datetime.strptime(start_times[i], '%H:%M').time(),
+                    end_time=datetime.strptime(end_times[i], '%H:%M').time(),
+                    location=locations[i] if i < len(locations) else ''
+                )
+                db.session.add(schedule)
+        
+        db.session.commit()
+        flash('Group created successfully!', 'success')
+        return redirect(url_for('groups'))
+    
+    instructors = User.query.filter_by(role='instructor', is_active=True).all()
+    categories = CourseCategory.query.all()
+    return render_template('add_group.html', instructors=instructors, categories=categories)
+
+@app.route('/groups/<int:group_id>')
+@login_required
+def group_detail(group_id):
+    group = Group.query.get_or_404(group_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        flash('Access denied.', 'error')
+        return redirect(url_for('groups'))
+    
+    # Get group members
+    members = db.session.query(GroupMember, Customer).join(Customer).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.status == 'active'
+    ).all()
+    
+    # Get upcoming sessions
+    upcoming_sessions = GroupSession.query.filter(
+        GroupSession.group_id == group_id,
+        GroupSession.session_date >= datetime.now().date(),
+        GroupSession.status != 'cancelled'
+    ).order_by(GroupSession.session_date, GroupSession.start_time).limit(5).all()
+    
+    # Get recent sessions
+    recent_sessions = GroupSession.query.filter(
+        GroupSession.group_id == group_id,
+        GroupSession.session_date < datetime.now().date()
+    ).order_by(GroupSession.session_date.desc(), GroupSession.start_time.desc()).limit(5).all()
+    
+    # Get available customers for adding to group
+    current_member_ids = [member[0].customer_id for member in members]
+    available_customers = Customer.query.filter(
+        ~Customer.id.in_(current_member_ids),
+        Customer.status == 'active'
+    ).all()
+    
+    return render_template('group_detail.html', group=group, members=members, 
+                         upcoming_sessions=upcoming_sessions, recent_sessions=recent_sessions,
+                         available_customers=available_customers)
+
+@app.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_group(group_id):
+    group = Group.query.get_or_404(group_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        flash('Access denied.', 'error')
+        return redirect(url_for('groups'))
+    
+    if request.method == 'POST':
+        group.name = request.form['name']
+        group.subject = request.form['subject']
+        group.description = request.form.get('description', '')
+        group.instructor_id = request.form['instructor_id']
+        group.category_id = request.form.get('category_id') if request.form.get('category_id') else None
+        group.max_students = int(request.form.get('max_students', 15))
+        group.start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
+        group.end_date = datetime.strptime(request.form['end_date'], '%Y-%m-%d').date() if request.form.get('end_date') else None
+        group.notes = request.form.get('notes', '')
+        group.status = request.form.get('status', 'active')
+        
+        # Update schedules - first delete existing ones
+        GroupSchedule.query.filter_by(group_id=group.id).delete()
+        
+        # Add new schedules
+        days = request.form.getlist('days[]')
+        start_times = request.form.getlist('start_times[]')
+        end_times = request.form.getlist('end_times[]')
+        locations = request.form.getlist('locations[]')
+        
+        for i, day in enumerate(days):
+            if day and i < len(start_times) and i < len(end_times):
+                schedule = GroupSchedule(
+                    group_id=group.id,
+                    day_of_week=day,
+                    start_time=datetime.strptime(start_times[i], '%H:%M').time(),
+                    end_time=datetime.strptime(end_times[i], '%H:%M').time(),
+                    location=locations[i] if i < len(locations) else ''
+                )
+                db.session.add(schedule)
+        
+        db.session.commit()
+        flash('Group updated successfully!', 'success')
+        return redirect(url_for('group_detail', group_id=group.id))
+    
+    instructors = User.query.filter_by(role='instructor', is_active=True).all()
+    categories = CourseCategory.query.all()
+    return render_template('edit_group.html', group=group, instructors=instructors, categories=categories)
+
+@app.route('/groups/<int:group_id>/add_member', methods=['POST'])
+@login_required
+def add_group_member(group_id):
+    group = Group.query.get_or_404(group_id)
+    customer_id = request.form['customer_id']
+    
+    # Check if already a member
+    existing_member = GroupMember.query.filter_by(
+        group_id=group_id,
+        customer_id=customer_id,
+        status='active'
+    ).first()
+    
+    if existing_member:
+        flash('Customer is already a member of this group.', 'warning')
+    else:
+        # Check group capacity
+        current_members = GroupMember.query.filter_by(group_id=group_id, status='active').count()
+        if current_members >= group.max_students:
+            flash('Group is at maximum capacity.', 'error')
+        else:
+            member = GroupMember(
+                group_id=group_id,
+                customer_id=customer_id,
+                notes=request.form.get('notes', '')
+            )
+            db.session.add(member)
+            db.session.commit()
+            flash('Member added successfully!', 'success')
+    
+    return redirect(url_for('group_detail', group_id=group_id))
+
+@app.route('/groups/<int:group_id>/members/<int:member_id>/remove', methods=['POST'])
+@login_required
+def remove_group_member(group_id, member_id):
+    member = GroupMember.query.get_or_404(member_id)
+    member.status = 'inactive'
+    db.session.commit()
+    flash('Member removed from group.', 'success')
+    return redirect(url_for('group_detail', group_id=group_id))
+
+@app.route('/groups/<int:group_id>/sessions')
+@login_required
+def group_sessions(group_id):
+    group = Group.query.get_or_404(group_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        flash('Access denied.', 'error')
+        return redirect(url_for('groups'))
+    
+    sessions = GroupSession.query.filter_by(group_id=group_id).order_by(
+        GroupSession.session_date.desc(), GroupSession.start_time.desc()
+    ).all()
+    
+    return render_template('group_sessions.html', group=group, sessions=sessions)
+
+@app.route('/groups/<int:group_id>/sessions/add', methods=['POST'])
+@login_required
+def add_group_session(group_id):
+    group = Group.query.get_or_404(group_id)
+    
+    session = GroupSession(
+        group_id=group_id,
+        session_date=datetime.strptime(request.form['session_date'], '%Y-%m-%d').date(),
+        start_time=datetime.strptime(request.form['start_time'], '%H:%M').time(),
+        end_time=datetime.strptime(request.form['end_time'], '%H:%M').time(),
+        topic=request.form.get('topic', ''),
+        location=request.form.get('location', ''),
+        notes=request.form.get('notes', '')
+    )
+    
+    db.session.add(session)
+    db.session.commit()
+    flash('Session added successfully!', 'success')
+    return redirect(url_for('group_sessions', group_id=group_id))
+
+@app.route('/groups/sessions/<int:session_id>/attendance', methods=['GET', 'POST'])
+@login_required
+def group_session_attendance(session_id):
+    session = GroupSession.query.get_or_404(session_id)
+    
+    if request.method == 'POST':
+        # Clear existing attendance
+        GroupAttendance.query.filter_by(group_session_id=session_id).delete()
+        
+        # Add new attendance records
+        member_ids = request.form.getlist('member_ids[]')
+        statuses = request.form.getlist('statuses[]')
+        notes_list = request.form.getlist('notes[]')
+        
+        for i, member_id in enumerate(member_ids):
+            if i < len(statuses):
+                attendance = GroupAttendance(
+                    group_session_id=session_id,
+                    customer_id=member_id,
+                    status=statuses[i],
+                    notes=notes_list[i] if i < len(notes_list) else ''
+                )
+                db.session.add(attendance)
+        
+        session.status = 'completed'
+        db.session.commit()
+        flash('Attendance recorded successfully!', 'success')
+        return redirect(url_for('group_sessions', group_id=session.group_id))
+    
+    # Get group members
+    members = db.session.query(GroupMember, Customer).join(Customer).filter(
+        GroupMember.group_id == session.group_id,
+        GroupMember.status == 'active'
+    ).all()
+    
+    # Get existing attendance
+    existing_attendance = {}
+    attendance_records = GroupAttendance.query.filter_by(group_session_id=session_id).all()
+    for record in attendance_records:
+        existing_attendance[record.customer_id] = record
+    
+    return render_template('group_attendance.html', session=session, members=members, 
+                         existing_attendance=existing_attendance)
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
@@ -1501,5 +1975,24 @@ if __name__ == '__main__':
             db.session.add(admin)
             db.session.commit()
             print("Default admin user created: username='admin', password='admin123'")
+        
+        # Create default categories if they don't exist
+        default_categories = [
+            {'name': 'Competitions', 'description': 'Programming competitions and contests'},
+            {'name': 'Camps', 'description': 'Intensive training camps and bootcamps'},
+            {'name': 'Courses', 'description': 'Regular educational courses and classes'}
+        ]
+        
+        for cat_data in default_categories:
+            existing_category = CourseCategory.query.filter_by(name=cat_data['name']).first()
+            if not existing_category:
+                category = CourseCategory(
+                    name=cat_data['name'],
+                    description=cat_data['description']
+                )
+                db.session.add(category)
+                print(f"Created category: {cat_data['name']}")
+        
+        db.session.commit()
     
     app.run(debug=True) 

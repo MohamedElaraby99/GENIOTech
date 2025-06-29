@@ -145,7 +145,7 @@
                             <thead>
                                 <tr>
                                     <th>Student</th>
-                                    <th>Email</th>
+                                    <th>Phone</th>
                                     <th>Enrolled Date</th>
                                     <th>Status</th>
                                     <th>Progress</th>
@@ -165,7 +165,7 @@
                                             {{ enrollment.customer.first_name }} {{ enrollment.customer.last_name }}
                                         </a>
                                     </td>
-                                    <td>{{ enrollment.customer.email }}</td>
+                                    <td>{{ enrollment.customer.phone or '-' }}</td>
                                     <td>{{ enrollment.enrollment_date.strftime('%Y-%m-%d') }}</td>
                                     <td>
                                         <span
@@ -297,7 +297,7 @@
                             <option value="">Choose a student...</option>
                             {% for customer in available_customers %}
                             <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{
-                                customer.email }})</option>
+                                customer.phone or 'No phone' }})</option>
                             {% endfor %}
                         </select>
                     </div>

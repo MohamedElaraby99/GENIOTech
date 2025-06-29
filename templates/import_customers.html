@@ -47,11 +47,10 @@
                             <h6><i class="fas fa-info-circle"></i> معلومات مهمة:</h6>
                             <ul class="mb-0">
                                 <li>يجب أن يحتوي الملف على الأعمدة التالية <strong>بالضبط</strong>:
-                                    <code>first_name</code>, <code>last_name</code>, <code>email</code>
+                                    <code>first_name</code>, <code>last_name</code>
                                 </li>
                                 <li>أسماء الأعمدة يجب أن تكون باللغة الإنجليزية بدون مسافات</li>
-                                <li>البريد الإلكتروني يجب أن يكون فريد لكل عميل</li>
-                                <li>إذا كان العميل موجود مسبقاً، سيتم تخطيه</li>
+                                <li>يمكن إضافة أرقام هواتف متعددة في <code>phone</code> و <code>phone2</code></li>
                                 <li><strong>يُنصح بشدة</strong> بتحميل النموذج أدناه واستخدامه مباشرة</li>
                             </ul>
                         </div>
@@ -100,8 +99,8 @@
                         <ul class="small mb-0">
                             <li><strong>first_name</strong> - الاسم الأول (مطلوب)</li>
                             <li><strong>last_name</strong> - اسم العائلة (مطلوب)</li>
-                            <li><strong>email</strong> - البريد الإلكتروني (مطلوب)</li>
-                            <li><strong>phone</strong> - رقم الهاتف (اختياري)</li>
+                            <li><strong>phone</strong> - رقم الهاتف الأول (اختياري)</li>
+                            <li><strong>phone2</strong> - رقم الهاتف الثاني (اختياري)</li>
                             <li><strong>status</strong> - الحالة (اختياري)</li>
                             <li><strong>assigned_instructor_email</strong> - بريد المدرب (اختياري)</li>
                             <li><strong>initial_notes</strong> - ملاحظات أولية (اختياري)</li>
@@ -138,8 +137,8 @@
                                 <tr>
                                     <th>first_name</th>
                                     <th>last_name</th>
-                                    <th>email</th>
                                     <th>phone</th>
+                                    <th>phone2</th>
                                     <th>status</th>
                                     <th>assigned_instructor_email</th>
                                     <th>initial_notes</th>
@@ -149,8 +148,8 @@
                                 <tr>
                                     <td>محمد</td>
                                     <td>أحمد</td>
-                                    <td>mohammed@example.com</td>
                                     <td>+966501234567</td>
+                                    <td>+966501234568</td>
                                     <td>active</td>
                                     <td>instructor@example.com</td>
                                     <td>عميل مهتم بدورات البرمجة</td>
@@ -158,8 +157,8 @@
                                 <tr>
                                     <td>فاطمة</td>
                                     <td>سالم</td>
-                                    <td>fatima@example.com</td>
                                     <td>+966507654321</td>
+                                    <td></td>
                                     <td>active</td>
                                     <td></td>
                                     <td>ملاحظات أولية للعميل</td>
@@ -167,8 +166,8 @@
                                 <tr>
                                     <td>أحمد</td>
                                     <td>محمود</td>
-                                    <td>ahmed@example.com</td>
                                     <td>+966509876543</td>
+                                    <td>+966509876544</td>
                                     <td>needs_follow_up</td>
                                     <td>instructor@example.com</td>
                                     <td>يحتاج متابعة خاصة</td>

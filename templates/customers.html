@@ -89,6 +89,55 @@
         </div>
     </div>
 
+    <!-- Age Filtering -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title"><i class="fas fa-filter"></i> Filter by Age</h6>
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="age_filter" class="form-label">Age Group</label>
+                            <select class="form-select" id="age_filter" name="age_filter">
+                                <option value="">All Ages</option>
+                                <option value="under_18" {{ 'selected' if age_filter=='under_18' else '' }}>Under 18
+                                </option>
+                                <option value="18_25" {{ 'selected' if age_filter=='18_25' else '' }}>18-25 years
+                                </option>
+                                <option value="26_35" {{ 'selected' if age_filter=='26_35' else '' }}>26-35 years
+                                </option>
+                                <option value="36_50" {{ 'selected' if age_filter=='36_50' else '' }}>36-50 years
+                                </option>
+                                <option value="over_50" {{ 'selected' if age_filter=='over_50' else '' }}>Over 50
+                                </option>
+                                <option value="unknown" {{ 'selected' if age_filter=='unknown' else '' }}>Age Unknown
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="min_age" class="form-label">Min Age</label>
+                            <input type="number" class="form-control" id="min_age" name="min_age"
+                                value="{{ min_age or '' }}" min="1" max="120" placeholder="Min">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="max_age" class="form-label">Max Age</label>
+                            <input type="number" class="form-control" id="max_age" name="max_age"
+                                value="{{ max_age or '' }}" min="1" max="120" placeholder="Max">
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-filter"></i> Apply Filter
+                            </button>
+                            <a href="{{ url_for('customers') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-12">
             <div class="card shadow">
@@ -132,10 +181,10 @@
                                     </th>
                                     <th>ID</th>
                                     <th>Name</th>
-                                    <th>Email</th>
                                     <th>Phone</th>
+                                    <th>Phone 2</th>
+                                    <th>Age</th>
                                     <th>Status</th>
-                                    <th>Assigned Instructor</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
@@ -149,7 +198,6 @@
                                     </td>
                                     <td>{{ customer.id }}</td>
                                     <td>{{ customer.first_name }} {{ customer.last_name }}</td>
-                                    <td>{{ customer.email }}</td>
                                     <td>
                                         {% if customer.phone %}
                                         <div class="d-flex align-items-center gap-2">
@@ -171,18 +219,37 @@
                                         {% endif %}
                                     </td>
                                     <td>
+                                        {% if customer.phone2 %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span>{{ customer.phone2 }}</span>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="tel:{{ customer.phone2 }}" class="btn btn-outline-info btn-sm"
+                                                    title="Call {{ customer.first_name }}">
+                                                    <i class="fas fa-phone"></i>
+                                                </a>
+                                                <a href="https://wa.me/{{ customer.phone2.replace(' ', '').replace('-', '').replace('(', '').replace(')', '') }}"
+                                                    target="_blank" class="btn btn-outline-success btn-sm"
+                                                    title="WhatsApp {{ customer.first_name }}">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if customer.age %}
+                                        <span class="badge bg-light text-dark">{{ customer.age }} years</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         <span
                                             class="badge bg-{{ 'success' if customer.status == 'active' else 'warning' if customer.status == 'needs_follow_up' else 'danger' if customer.status == 'no_show' else 'secondary' }}">
                                             {{ customer.status.replace('_', ' ').title() }}
                                         </span>
-                                    </td>
-                                    <td>
-                                        {% if customer.assigned_instructor %}
-                                        {{ customer.assigned_instructor.first_name }} {{
-                                        customer.assigned_instructor.last_name }}
-                                        {% else %}
-                                        <span class="text-muted">Unassigned</span>
-                                        {% endif %}
                                     </td>
                                     <td>{{ customer.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td>

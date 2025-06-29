@@ -64,7 +64,9 @@
                                     <td>
                                         <strong>{{ link.customer.first_name }} {{ link.customer.last_name
                                             }}</strong><br>
-                                        <small class="text-muted">{{ link.customer.email }}</small>
+                                        {% if link.customer.phone %}
+                                        <small class="text-muted">{{ link.customer.phone }}</small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <span class="badge bg-secondary">{{ link.customer.phone }}</span>

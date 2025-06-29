@@ -48,19 +48,24 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="email" class="form-label">Email <span
-                                            class="text-danger">*</span></label>
-                                    <input type="email" class="form-control" id="email" name="email"
-                                        value="{{ customer.email }}" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
                                     <label for="phone" class="form-label">Phone</label>
                                     <input type="tel" class="form-control" id="phone" name="phone"
                                         value="{{ customer.phone or '' }}">
                                 </div>
                             </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="phone2" class="form-label">Phone 2</label>
+                                    <input type="tel" class="form-control" id="phone2" name="phone2"
+                                        value="{{ customer.phone2 or '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="age" class="form-label">Age</label>
+                            <input type="number" class="form-control" id="age" name="age"
+                                value="{{ customer.age or '' }}" placeholder="Enter age" min="1" max="120">
                         </div>
 
                         <div class="row">
@@ -83,17 +88,18 @@
                             {% if current_user.role in ['admin', 'customer_service'] %}
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="assigned_instructor_id" class="form-label">Assigned Instructor</label>
-                                    <select class="form-select" id="assigned_instructor_id"
-                                        name="assigned_instructor_id">
-                                        <option value="">Select Instructor</option>
+                                    <label for="assigned_instructor_ids" class="form-label">Assigned Instructors</label>
+                                    <select class="form-select" id="assigned_instructor_ids"
+                                        name="assigned_instructor_ids" multiple size="4">
                                         {% for instructor in instructors %}
-                                        <option value="{{ instructor.id }}" {{ 'selected' if
-                                            customer.assigned_instructor_id==instructor.id else '' }}>
+                                        <option value="{{ instructor.id }}" {{ 'selected' if instructor in
+                                            customer.assigned_instructors else '' }}>
                                             {{ instructor.first_name }} {{ instructor.last_name }}
                                         </option>
                                         {% endfor %}
                                     </select>
+                                    <div class="form-text">Hold Ctrl (or Cmd on Mac) to select multiple instructors
+                                    </div>
                                 </div>
                             </div>
                             {% endif %}

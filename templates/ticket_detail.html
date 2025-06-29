@@ -59,7 +59,9 @@
                                 class="text-decoration-none">
                                 {{ ticket.customer.first_name }} {{ ticket.customer.last_name }}
                             </a>
-                            <br><small class="text-muted">{{ ticket.customer.email }}</small>
+                            {% if ticket.customer.phone %}
+                            <br><small class="text-muted">{{ ticket.customer.phone }}</small>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="row mb-3">

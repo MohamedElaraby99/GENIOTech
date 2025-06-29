@@ -43,13 +43,29 @@
                         <div class="mb-3">
                             <label for="customer_id" class="form-label">Customer <span
                                     class="text-danger">*</span></label>
-                            <select class="form-select" id="customer_id" name="customer_id" required>
-                                <option value="">Select a customer...</option>
-                                {% for customer in customers %}
-                                <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{
-                                    customer.email }})</option>
-                                {% endfor %}
-                            </select>
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="customer_search"
+                                    placeholder="Search customers by name or phone..." autocomplete="off">
+                                <input type="hidden" id="customer_id" name="customer_id" required>
+                                <div class="dropdown-menu w-100" id="customer_dropdown"
+                                    style="max-height: 300px; overflow-y: auto; display: none;">
+                                    {% for customer in customers %}
+                                    <a class="dropdown-item customer-option" href="#"
+                                        data-customer-id="{{ customer.id }}"
+                                        data-search-text="{{ customer.first_name }} {{ customer.last_name }} {{ customer.phone or '' }}">
+                                        <div class="d-flex justify-content-between">
+                                            <span><strong>{{ customer.first_name }} {{ customer.last_name
+                                                    }}</strong></span>
+                                            <small class="text-muted">{{ customer.phone or 'No phone' }}</small>
+                                        </div>
+                                        {% if customer.age %}
+                                        <small class="text-muted">Age: {{ customer.age }}</small>
+                                        {% endif %}
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="form-text">Start typing to search for customers by name or phone number</div>
                         </div>
 
                         <div class="row">
@@ -93,4 +109,80 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('customer_search');
+        const hiddenInput = document.getElementById('customer_id');
+        const dropdown = document.getElementById('customer_dropdown');
+        const customerOptions = document.querySelectorAll('.customer-option');
+
+        // Show dropdown when search input is focused
+        searchInput.addEventListener('focus', function () {
+            dropdown.style.display = 'block';
+            filterCustomers(''); // Show all customers initially
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest('.position-relative')) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        // Filter customers as user types
+        searchInput.addEventListener('input', function () {
+            const searchTerm = this.value.toLowerCase();
+            filterCustomers(searchTerm);
+
+            // Clear selection if search input is cleared
+            if (searchTerm === '') {
+                hiddenInput.value = '';
+            }
+        });
+
+        // Handle customer selection
+        customerOptions.forEach(option => {
+            option.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                const customerId = this.getAttribute('data-customer-id');
+                const customerName = this.querySelector('strong').textContent;
+                const customerPhone = this.querySelector('.text-muted').textContent;
+
+                // Set the hidden input value
+                hiddenInput.value = customerId;
+
+                // Set the search input to show selected customer
+                searchInput.value = `${customerName} (${customerPhone})`;
+
+                // Hide dropdown
+                dropdown.style.display = 'none';
+            });
+        });
+
+        function filterCustomers(searchTerm) {
+            customerOptions.forEach(option => {
+                const searchText = option.getAttribute('data-search-text').toLowerCase();
+
+                if (searchText.includes(searchTerm)) {
+                    option.style.display = 'block';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        }
+
+        // Validate form submission
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function (e) {
+            if (!hiddenInput.value) {
+                e.preventDefault();
+                alert('Please select a customer from the dropdown.');
+                searchInput.focus();
+            }
+        });
+    });
+</script>
+
 {% endblock %}

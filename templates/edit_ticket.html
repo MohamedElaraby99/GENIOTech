@@ -87,7 +87,8 @@
                                     {% for customer in customers %}
                                     <option value="{{ customer.id }}" {% if customer.id==ticket.customer_id %}selected{%
                                         endif %}>
-                                        {{ customer.first_name }} {{ customer.last_name }} - {{ customer.email }}
+                                        {{ customer.first_name }} {{ customer.last_name }} - {{ customer.phone or 'No
+                                        phone' }}
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -171,7 +172,9 @@
                             class="text-decoration-none">
                             {{ ticket.customer.first_name }} {{ ticket.customer.last_name }}
                         </a><br>
-                        <small class="text-muted">{{ ticket.customer.email }}</small>
+                        {% if ticket.customer.phone %}
+                        <small class="text-muted">{{ ticket.customer.phone }}</small>
+                        {% endif %}
                     </div>
                 </div>
             </div>

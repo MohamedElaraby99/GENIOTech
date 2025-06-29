@@ -34,7 +34,7 @@
                                 <option value="">Select a customer...</option>
                                 {% for customer in customers %}
                                 <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{
-                                    customer.email }})</option>
+                                    customer.phone or 'No phone' }})</option>
                                 {% endfor %}
                             </select>
                         </div>
