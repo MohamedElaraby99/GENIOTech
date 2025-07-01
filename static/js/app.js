@@ -1,4 +1,4 @@
-// CRM System JavaScript functionality
+// GENIOTECH JavaScript functionality
 
 document.addEventListener("DOMContentLoaded", function () {
   initializeApp();

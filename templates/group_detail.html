@@ -134,6 +134,13 @@
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="attendance-tab" data-bs-toggle="tab"
+                                data-bs-target="#attendance" type="button" role="tab">
+                                <i class="fas fa-calendar-check"></i> Detailed Attendance
+                            </button>
+                        </li>
+                        {% if current_user.role != 'instructor' %}
+                        <li class="nav-item" role="presentation">
                             <button class="nav-link" id="performance-tab" data-bs-toggle="tab"
                                 data-bs-target="#performance" type="button" role="tab">
                                 <i class="fas fa-chart-bar"></i> Performance
@@ -145,6 +152,7 @@
                                 <i class="fas fa-history"></i> History
                             </button>
                         </li>
+                        {% endif %}
                     </ul>
                 </div>
 
@@ -177,6 +185,7 @@
                                         </div>
                                         <div class="card-body">
                                             <div class="d-grid gap-2">
+                                                {% if current_user.role != 'instructor' %}
                                                 <button class="btn btn-primary" data-bs-toggle="modal"
                                                     data-bs-target="#addMemberModal">
                                                     <i class="fas fa-user-plus"></i> Add Member
@@ -185,14 +194,17 @@
                                                     data-bs-target="#addSessionModal">
                                                     <i class="fas fa-calendar-plus"></i> Schedule Session
                                                 </button>
+                                                {% endif %}
                                                 <a href="{{ url_for('group_sessions', group_id=group.id) }}"
                                                     class="btn btn-info">
                                                     <i class="fas fa-list"></i> View All Sessions
                                                 </a>
+                                                {% if current_user.role != 'instructor' %}
                                                 <button class="btn btn-warning" data-bs-toggle="modal"
                                                     data-bs-target="#addPerformanceModal">
                                                     <i class="fas fa-clipboard-check"></i> Add Assessment
                                                 </button>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
@@ -260,10 +272,12 @@
                                 <div class="col-12">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h5>Active Members ({{ members|length }})</h5>
+                                        {% if current_user.role != 'instructor' %}
                                         <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
                                             data-bs-target="#addMemberModal">
                                             <i class="fas fa-plus"></i> Add Member
                                         </button>
+                                        {% endif %}
                                     </div>
 
                                     {% if members %}
@@ -314,7 +328,7 @@
                                                     <td>
                                                         {{ perf_data.member.joined_date.strftime('%Y-%m-%d') }}
                                                         <br>
-                                                        <small class="text-muted">{{ ((datetime.now().date() -
+                                                        <small class="text-muted">{{ ((current_date -
                                                             perf_data.member.joined_date.date()).days) }} days
                                                             ago</small>
                                                     </td>
@@ -344,18 +358,27 @@
                                                     <td>
                                                         <div class="btn-group btn-group-sm">
                                                             <a href="{{ url_for('customer_detail', customer_id=perf_data.customer.id) }}"
-                                                                class="btn btn-outline-primary btn-sm">
+                                                                class="btn btn-outline-primary btn-sm"
+                                                                title="ملف الطالب">
                                                                 <i class="fas fa-eye"></i>
                                                             </a>
+                                                            <a href="{{ url_for('member_attendance_detail', group_id=group.id, customer_id=perf_data.customer.id) }}"
+                                                                class="btn btn-outline-info btn-sm"
+                                                                title="سجل الحضور التفصيلي">
+                                                                <i class="fas fa-calendar-check"></i>
+                                                            </a>
+                                                            {% if current_user.role != 'instructor' %}
                                                             <form method="POST"
                                                                 action="{{ url_for('remove_group_member', group_id=group.id, member_id=perf_data.member.id) }}"
                                                                 style="display: inline;">
                                                                 <button type="submit"
                                                                     class="btn btn-outline-danger btn-sm"
-                                                                    onclick="return confirm('Remove this member from the group?')">
+                                                                    onclick="return confirm('Remove this member from the group?')"
+                                                                    title="إزالة من المجموعة">
                                                                     <i class="fas fa-times"></i>
                                                                 </button>
                                                             </form>
+                                                            {% endif %}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -367,11 +390,241 @@
                                     <div class="text-center py-5">
                                         <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
                                         <h5 class="text-muted">No members yet</h5>
+                                        {% if current_user.role != 'instructor' %}
                                         <p class="text-muted">Add your first member to get started!</p>
                                         <button class="btn btn-primary" data-bs-toggle="modal"
                                             data-bs-target="#addMemberModal">
                                             <i class="fas fa-plus"></i> Add First Member
                                         </button>
+                                        {% else %}
+                                        <p class="text-muted">No members have been added to this group yet.</p>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Detailed Attendance Tab -->
+                        <div class="tab-pane fade" id="attendance" role="tabpanel">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5>جدول الحضور التفصيلي</h5>
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="exportAttendance()">
+                                                <i class="fas fa-download"></i> تصدير
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" onclick="printAttendance()">
+                                                <i class="fas fa-print"></i> طباعة
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {% if attendance_matrix and members %}
+                                    <div class="card shadow">
+                                        <div class="card-body">
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered table-sm" id="attendanceMatrix">
+                                                    <thead class="table-dark">
+                                                        <tr>
+                                                            <th class="sticky-col">الطالب</th>
+                                                            {% for session in recent_completed_sessions[:15] %}
+                                                            <th class="text-center attendance-date">
+                                                                {{ session.session_date.strftime('%m/%d') }}
+                                                                <br><small>{{ session.session_date.strftime('%a')
+                                                                    }}</small>
+                                                            </th>
+                                                            {% endfor %}
+                                                            <th class="text-center">الإحصائيات</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for perf_data in member_performance %}
+                                                        <tr>
+                                                            <td class="sticky-col student-name">
+                                                                <div class="d-flex align-items-center">
+                                                                    <div
+                                                                        class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
+                                                                        {{ perf_data.customer.first_name[0] }}{{
+                                                                        perf_data.customer.last_name[0] }}
+                                                                    </div>
+                                                                    <div>
+                                                                        <a href="{{ url_for('member_attendance_detail', group_id=group.id, customer_id=perf_data.customer.id) }}"
+                                                                            class="text-decoration-none">
+                                                                            <strong>{{ perf_data.customer.first_name }}
+                                                                                {{ perf_data.customer.last_name
+                                                                                }}</strong>
+                                                                        </a>
+                                                                        <br><small class="text-muted">{{
+                                                                            perf_data.customer.phone or 'لا يوجد هاتف'
+                                                                            }}</small>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            {% for session in recent_completed_sessions[:15] %}
+                                                            {% set session_key =
+                                                            session.session_date.strftime('%Y-%m-%d') + '_' +
+                                                            session.id|string %}
+                                                            {% set attendance_record =
+                                                            attendance_matrix.get(session_key, {}).get('attendance',
+                                                            {}).get(perf_data.customer.id) %}
+                                                            <td class="text-center attendance-cell"
+                                                                data-session-date="{{ session.session_date.strftime('%Y-%m-%d') }}"
+                                                                data-student="{{ perf_data.customer.first_name }} {{ perf_data.customer.last_name }}">
+                                                                {% if attendance_record %}
+                                                                {% if attendance_record.status == 'present' %}
+                                                                <span class="badge bg-success attendance-badge"
+                                                                    title="حضر">✓</span>
+                                                                {% elif attendance_record.status == 'late' %}
+                                                                <span class="badge bg-warning attendance-badge"
+                                                                    title="تأخير">⏰</span>
+                                                                {% elif attendance_record.status == 'absent' %}
+                                                                <span class="badge bg-danger attendance-badge"
+                                                                    title="غياب">✗</span>
+                                                                {% elif attendance_record.status == 'excused' %}
+                                                                <span class="badge bg-info attendance-badge"
+                                                                    title="غياب بعذر">📝</span>
+                                                                {% endif %}
+                                                                {% if attendance_record.notes %}
+                                                                <i class="fas fa-comment-alt text-muted ms-1"
+                                                                    title="{{ attendance_record.notes }}"></i>
+                                                                {% endif %}
+                                                                {% else %}
+                                                                <span class="text-muted">-</span>
+                                                                {% endif %}
+                                                            </td>
+                                                            {% endfor %}
+                                                            <td class="text-center stats-cell">
+                                                                <div class="d-flex flex-column align-items-center">
+                                                                    <span class="badge bg-primary">{{
+                                                                        perf_data.attendance_rate|round(1) }}%</span>
+                                                                    <small class="text-muted mt-1">
+                                                                        {{ perf_data.present_count }}/{{
+                                                                        perf_data.total_sessions }}
+                                                                    </small>
+                                                                    {% if perf_data.current_streak > 0 %}
+                                                                    <small class="text-success">
+                                                                        <i class="fas fa-fire"></i> {{
+                                                                        perf_data.current_streak }}
+                                                                    </small>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <!-- Legend -->
+                                            <div class="mt-3">
+                                                <h6>مفتاح الرموز:</h6>
+                                                <div class="row">
+                                                    <div class="col-md-3 col-6 mb-2">
+                                                        <span class="badge bg-success me-2">✓</span> حضر
+                                                    </div>
+                                                    <div class="col-md-3 col-6 mb-2">
+                                                        <span class="badge bg-warning me-2">⏰</span> تأخير
+                                                    </div>
+                                                    <div class="col-md-3 col-6 mb-2">
+                                                        <span class="badge bg-danger me-2">✗</span> غياب
+                                                    </div>
+                                                    <div class="col-md-3 col-6 mb-2">
+                                                        <span class="badge bg-info me-2">📝</span> غياب بعذر
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Summary Statistics -->
+                                            <div class="row mt-4">
+                                                <div class="col-md-6">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">إحصائيات المجموعة</h6>
+                                                            <div class="row text-center">
+                                                                <div class="col-3">
+                                                                    <div class="h5 mb-0 text-success">
+                                                                        {{
+                                                                        member_performance|map(attribute='present_count')|sum
+                                                                        }}
+                                                                    </div>
+                                                                    <small class="text-muted">حضر</small>
+                                                                </div>
+                                                                <div class="col-3">
+                                                                    <div class="h5 mb-0 text-warning">
+                                                                        {{
+                                                                        member_performance|map(attribute='late_count')|sum
+                                                                        }}
+                                                                    </div>
+                                                                    <small class="text-muted">تأخير</small>
+                                                                </div>
+                                                                <div class="col-3">
+                                                                    <div class="h5 mb-0 text-danger">
+                                                                        {{
+                                                                        member_performance|map(attribute='absent_count')|sum
+                                                                        }}
+                                                                    </div>
+                                                                    <small class="text-muted">غياب</small>
+                                                                </div>
+                                                                <div class="col-3">
+                                                                    <div class="h5 mb-0 text-info">
+                                                                        {{
+                                                                        member_performance|map(attribute='excused_count')|sum
+                                                                        }}
+                                                                    </div>
+                                                                    <small class="text-muted">عذر</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="card bg-light">
+                                                        <div class="card-body">
+                                                            <h6 class="card-title">معدلات الحضور</h6>
+                                                            <div class="row text-center">
+                                                                <div class="col-4">
+                                                                    <div class="h5 mb-0 text-success">
+                                                                        {{
+                                                                        ((member_performance|map(attribute='attendance_rate')|sum)
+                                                                        / (member_performance|length))|round(1) if
+                                                                        member_performance|length > 0 else 0 }}%
+                                                                    </div>
+                                                                    <small class="text-muted">متوسط المجموعة</small>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <div class="h5 mb-0 text-primary">
+                                                                        {{
+                                                                        member_performance|map(attribute='attendance_rate')|max|round(1)
+                                                                        if member_performance|length > 0 else 0 }}%
+                                                                    </div>
+                                                                    <small class="text-muted">أعلى معدل</small>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <div class="h5 mb-0 text-secondary">
+                                                                        {{
+                                                                        member_performance|map(attribute='attendance_rate')|min|round(1)
+                                                                        if member_performance|length > 0 else 0 }}%
+                                                                    </div>
+                                                                    <small class="text-muted">أقل معدل</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <div class="text-center py-5">
+                                        <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                                        <h5>لا توجد بيانات حضور</h5>
+                                        <p class="text-muted">لم يتم تسجيل أي حضور للمجموعة بعد</p>
+                                        <a href="{{ url_for('group_sessions', group_id=group.id) }}"
+                                            class="btn btn-primary">
+                                            <i class="fas fa-calendar-plus"></i> جدولة حصة جديدة
+                                        </a>
                                     </div>
                                     {% endif %}
                                 </div>
@@ -494,15 +747,18 @@
                         </div>
 
                         <!-- Performance Tab -->
+                        {% if current_user.role != 'instructor' %}
                         <div class="tab-pane fade" id="performance" role="tabpanel">
                             <div class="row">
                                 <div class="col-12">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h5>Student Performance Overview</h5>
+                                        {% if current_user.role != 'instructor' %}
                                         <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
                                             data-bs-target="#addPerformanceModal">
                                             <i class="fas fa-plus"></i> Add Assessment
                                         </button>
+                                        {% endif %}
                                     </div>
 
                                     <!-- Performance Summary -->
@@ -611,6 +867,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -805,55 +1062,233 @@
         // Progress Chart
         const progressCtx = document.getElementById('progressChart');
         if (progressCtx) {
-            const monthlyData = {{ monthly_progress|tojson }};
-            const labels = Object.keys(monthlyData).sort();
-            const data = labels.map(label => monthlyData[label]);
+            const monthlyData = {{ monthly_progress| tojson
+        }
+    };
+    const labels = Object.keys(monthlyData).sort();
+    const data = labels.map(label => monthlyData[label]);
 
-            new Chart(progressCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Sessions Completed',
-                        data: data,
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
+    new Chart(progressCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Sessions Completed',
+                data: data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        title: {
-                            display: true,
-                            text: 'Monthly Session Progress'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
+                title: {
+                    display: true,
+                    text: 'Monthly Session Progress'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
                     }
                 }
-            });
+            }
         }
+    });
+        }
+
+    // Attendance matrix functionality
+    function exportAttendance() {
+        const table = document.getElementById('attendanceMatrix');
+        if (!table) return;
+
+        let csv = '';
+        const rows = table.querySelectorAll('tr');
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('th, td');
+            const rowData = [];
+
+            cells.forEach(cell => {
+                // Clean text content and remove extra whitespace
+                let text = cell.textContent.trim();
+                text = text.replace(/\s+/g, ' '); // Replace multiple spaces with single space
+                text = text.replace(/"/g, '""'); // Escape quotes
+                rowData.push(`"${text}"`);
+            });
+
+            csv += rowData.join(',') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `attendance_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function printAttendance() {
+        const printContent = document.getElementById('attendanceMatrix');
+        if (!printContent) return;
+
+        const groupName = "{{ group.name }}";
+        const printDate = new Date().toLocaleDateString('ar-EG');
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+                    <html>
+                    <head>
+                        <title>جدول الحضور - ${groupName}</title>
+                        <style>
+                            @media print {
+                                body { font-family: Arial, sans-serif; direction: rtl; }
+                                table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                                th, td { border: 1px solid #ddd; padding: 4px; text-align: center; }
+                                th { background-color: #f5f5f5; font-weight: bold; }
+                                .attendance-badge { padding: 2px 6px; border-radius: 3px; }
+                                .bg-success { background-color: #d4edda; color: #155724; }
+                                .bg-warning { background-color: #fff3cd; color: #856404; }
+                                .bg-danger { background-color: #f8d7da; color: #721c24; }
+                                .bg-info { background-color: #d1ecf1; color: #0c5460; }
+                                .header { text-align: center; margin-bottom: 20px; }
+                                .footer { text-align: center; margin-top: 20px; font-size: 10px; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>جدول الحضور التفصيلي</h2>
+                            <h3>${groupName}</h3>
+                            <p>تاريخ الطباعة: ${printDate}</p>
+                        </div>
+                        ${printContent.outerHTML}
+                        <div class="footer">
+                            <p>تم إنشاؤه بواسطة نظام GENIOTECH</p>
+                        </div>
+                    </body>
+                    </html>
+                `);
+        printWindow.document.close();
+        printWindow.print();
+    }
+
+    // Tooltip for attendance cells
+    const attendanceCells = document.querySelectorAll('.attendance-cell');
+    attendanceCells.forEach(cell => {
+        cell.addEventListener('mouseenter', function () {
+            const sessionDate = this.dataset.sessionDate;
+            const student = this.dataset.student;
+            if (sessionDate && student) {
+                this.title = `${student} - ${sessionDate}`;
+            }
+        });
+    });
     });
 </script>
 
 <style>
+    /* Attendance matrix styles */
+    #attendanceMatrix {
+        font-size: 0.9rem;
+    }
+
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        background-color: #fff;
+        z-index: 10;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        min-width: 200px;
+        max-width: 250px;
+    }
+
+    .attendance-date {
+        min-width: 80px;
+        writing-mode: vertical-rl;
+        text-orientation: mixed;
+    }
+
+    .attendance-cell {
+        min-width: 80px;
+        position: relative;
+    }
+
+    .attendance-badge {
+        font-size: 1em;
+        padding: 4px 8px;
+        border-radius: 50%;
+        min-width: 30px;
+        display: inline-block;
+    }
+
+    .student-name {
+        white-space: nowrap;
+    }
+
+    .stats-cell {
+        min-width: 100px;
+        background-color: #f8f9fa;
+    }
+
     .avatar-sm {
         width: 40px;
         height: 40px;
         font-size: 14px;
         font-weight: bold;
+    }
+
+    /* Print styles */
+    @media print {
+
+        .btn,
+        .card-header,
+        .nav-tabs {
+            display: none !important;
+        }
+
+        .sticky-col {
+            position: static !important;
+        }
+
+        #attendanceMatrix {
+            font-size: 8px !important;
+        }
+
+        .attendance-badge {
+            background-color: transparent !important;
+            border: 1px solid #000 !important;
+            color: #000 !important;
+        }
+    }
+
+    /* Responsive table */
+    @media (max-width: 768px) {
+        .attendance-date {
+            writing-mode: horizontal-tb;
+            text-orientation: initial;
+            min-width: 60px;
+        }
+
+        .sticky-col {
+            min-width: 150px;
+            max-width: 180px;
+        }
+
+        #attendanceMatrix {
+            font-size: 0.8rem;
+        }
     }
 
     .bg-gradient-primary {

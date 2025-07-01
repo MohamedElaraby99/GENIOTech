@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}سجل الحضور - {{ customer.first_name }} {{ customer.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-gray-800">
+                        <i class="fas fa-user-check"></i> سجل الحضور التفصيلي
+                    </h1>
+                    <p class="text-muted mb-0">
+                        {{ customer.first_name }} {{ customer.last_name }} - {{ group.name }}
+                    </p>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('group_detail', group_id=group.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> العودة للمجموعة
+                    </a>
+                    <a href="{{ url_for('customer_detail', customer_id=customer.id) }}" class="btn btn-info">
+                        <i class="fas fa-user"></i> ملف الطالب
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar fa-2x mb-2"></i>
+                    <h4 class="mb-0">{{ attendance_stats.total_sessions }}</h4>
+                    <small>إجمالي الحصص</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-check fa-2x mb-2"></i>
+                    <h4 class="mb-0">{{ attendance_stats.present_count }}</h4>
+                    <small>حضر</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <h4 class="mb-0">{{ attendance_stats.late_count }}</h4>
+                    <small>تأخير</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-times fa-2x mb-2"></i>
+                    <h4 class="mb-0">{{ attendance_stats.absent_count }}</h4>
+                    <small>غياب</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-file-medical fa-2x mb-2"></i>
+                    <h4 class="mb-0">{{ attendance_stats.excused_count }}</h4>
+                    <small>غياب بعذر</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 col-sm-6 mb-3">
+            <div class="card bg-purple text-white h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-percentage fa-2x mb-2"></i>
+                    <h4 class="mb-0">{{ attendance_stats.attendance_rate }}%</h4>
+                    <small>معدل الحضور</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Streaks -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-left-success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                سلسلة الحضور الحالية
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ attendance_stats.current_streak }} حصة متتالية
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-fire fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-left-warning">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                أطول سلسلة حضور
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ attendance_stats.longest_streak }} حصة متتالية
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-trophy fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Breakdown -->
+    {% if attendance_stats.monthly_stats %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-chart-line"></i> تفاصيل الحضور الشهري
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for month_key, month_data in attendance_stats.monthly_stats.items() %}
+                <div class="col-lg-3 col-md-6 mb-3">
+                    <div class="card border-left-primary">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ month_data.month_name }}</h6>
+                            <div class="progress mb-2" style="height: 20px;">
+                                <div class="progress-bar bg-success" role="progressbar"
+                                    style="width: {{ month_data.attendance_rate }}%"
+                                    title="معدل الحضور: {{ month_data.attendance_rate }}%">
+                                    {{ month_data.attendance_rate }}%
+                                </div>
+                            </div>
+                            <div class="row text-center">
+                                <div class="col-3">
+                                    <small class="text-success">{{ month_data.present }}</small>
+                                </div>
+                                <div class="col-3">
+                                    <small class="text-warning">{{ month_data.late }}</small>
+                                </div>
+                                <div class="col-3">
+                                    <small class="text-danger">{{ month_data.absent }}</small>
+                                </div>
+                                <div class="col-3">
+                                    <small class="text-info">{{ month_data.excused }}</small>
+                                </div>
+                            </div>
+                            <div class="text-center mt-1">
+                                <small class="text-muted">من {{ month_data.total }} حصة</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Detailed Attendance Records -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list"></i> سجل الحضور المفصل
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if attendance_records %}
+            <div class="table-responsive">
+                <table class="table table-bordered" id="attendanceTable">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>اليوم</th>
+                            <th>الوقت</th>
+                            <th>الموضوع</th>
+                            <th>الحالة</th>
+                            <th>تم التسجيل في</th>
+                            <th>الملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for attendance, session in attendance_records %}
+                        <tr class="attendance-row" data-status="{{ attendance.status }}">
+                            <td>{{ session.session_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ session.session_date.strftime('%A') }}</td>
+                            <td>{{ session.start_time.strftime('%H:%M') }} - {{ session.end_time.strftime('%H:%M') }}
+                            </td>
+                            <td>{{ session.topic or '-' }}</td>
+                            <td>
+                                {% if attendance.status == 'present' %}
+                                <span class="badge badge-success">
+                                    <i class="fas fa-check"></i> حضر
+                                </span>
+                                {% elif attendance.status == 'late' %}
+                                <span class="badge badge-warning">
+                                    <i class="fas fa-clock"></i> تأخير
+                                </span>
+                                {% elif attendance.status == 'absent' %}
+                                <span class="badge badge-danger">
+                                    <i class="fas fa-times"></i> غياب
+                                </span>
+                                {% elif attendance.status == 'excused' %}
+                                <span class="badge badge-info">
+                                    <i class="fas fa-file-medical"></i> غياب بعذر
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ attendance.recorded_at.strftime('%Y-%m-%d %H:%M') if attendance.recorded_at else '-'
+                                }}</td>
+                            <td>{{ attendance.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                <h5>لا يوجد سجل حضور</h5>
+                <p class="text-muted">لم يتم تسجيل أي حضور لهذا الطالب بعد</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Performance Records (if any) -->
+    {% if performance_records %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-chart-bar"></i> سجل الأداء
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>نوع التقييم</th>
+                            <th>الدرجة</th>
+                            <th>التقدير</th>
+                            <th>الملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for performance in performance_records %}
+                        <tr>
+                            <td>{{ performance.assessment_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ performance.assessment_type or 'تقييم عام' }}</td>
+                            <td>
+                                {% if performance.score %}
+                                <span
+                                    class="badge badge-{{ 'success' if performance.score >= 80 else 'warning' if performance.score >= 60 else 'danger' }}">
+                                    {{ performance.score }}%
+                                </span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ performance.grade or '-' }}</td>
+                            <td>{{ performance.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+
+    .attendance-row[data-status="present"] {
+        background-color: #f8fff8;
+    }
+
+    .attendance-row[data-status="late"] {
+        background-color: #fffdf8;
+    }
+
+    .attendance-row[data-status="absent"] {
+        background-color: #fff8f8;
+    }
+
+    .attendance-row[data-status="excused"] {
+        background-color: #f8fcff;
+    }
+
+    .border-left-purple {
+        border-left: 0.25rem solid #6f42c1 !important;
+    }
+</style>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTable
+        if ($('#attendanceTable').length) {
+            $('#attendanceTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json"
+                },
+                "order": [[0, "desc"]],
+                "pageLength": 25,
+                "responsive": true
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Edit Customer - CRM System{% endblock %}
+{% block title %}Edit Customer - GENIOTECH{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -104,6 +104,73 @@
                             </div>
                             {% endif %}
                         </div>
+
+                        <!-- Group Management Section -->
+                        {% if current_user.role in ['admin', 'customer_service', 'instructor'] %}
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2 mb-3">
+                                <i class="fas fa-users"></i> Group Management
+                            </h6>
+
+                            <!-- Current Groups -->
+                            {% set active_memberships = customer.group_memberships|selectattr('status', 'equalto',
+                            'active')|list %}
+                            {% if active_memberships %}
+                            <div class="mb-3">
+                                <label class="form-label">Current Groups</label>
+                                <div class="row">
+                                    {% for membership in active_memberships %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="card bg-light">
+                                            <div class="card-body py-2">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <strong>{{ membership.group.name }}</strong><br>
+                                                        <small class="text-muted">{{ membership.group.subject }}</small>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox"
+                                                            name="remove_group_ids" value="{{ membership.group.id }}"
+                                                            id="remove_group_{{ membership.group.id }}">
+                                                        <label class="form-check-label text-danger"
+                                                            for="remove_group_{{ membership.group.id }}">
+                                                            Remove
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="form-text text-danger">
+                                    <i class="fas fa-exclamation-triangle"></i> Check "Remove" to unenroll from groups
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Add to New Groups -->
+                            <div class="mb-3">
+                                <label for="add_group_ids" class="form-label">
+                                    <i class="fas fa-plus"></i> Add to New Groups
+                                </label>
+                                <select class="form-select" id="add_group_ids" name="add_group_ids" multiple size="4">
+                                    {% for group in available_groups %}
+                                    <option value="{{ group.id }}" {% if group.current_members>= group.max_students
+                                        %}disabled{% endif %}>
+                                        {{ group.name }} - {{ group.subject }}
+                                        ({{ group.current_members }}/{{ group.max_students }} students)
+                                        {% if group.current_members >= group.max_students %} - FULL{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple
+                                    groups
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
 
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{{ url_for('customers') }}" class="btn btn-secondary">Cancel</a>

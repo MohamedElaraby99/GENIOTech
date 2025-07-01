@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}حضور اليوم{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-calendar-check"></i> حضور اليوم
+                </h1>
+                <div class="text-muted">
+                    <i class="fas fa-calendar"></i>
+                    {{ formatted_date }}
+                </div>
+            </div>
+
+            <!-- Today's Individual Sessions -->
+            {% if todays_sessions %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user-clock"></i> الحصص الفردية لليوم
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for session in todays_sessions %}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card border-left-primary h-100">
+                                <div class="card-body">
+                                    <div class="row no-gutters align-items-center">
+                                        <div class="col mr-2">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                                {{ session.scheduled_date.strftime('%H:%M') }} -
+                                                {{ session.customer.first_name }} {{ session.customer.last_name }}
+                                            </div>
+                                            <div class="h6 mb-2 font-weight-bold text-gray-800">
+                                                مدة الحصة: {{ session.duration }} دقيقة
+                                            </div>
+                                            <div class="mb-3">
+                                                <small class="text-muted">
+                                                    <i class="fas fa-phone"></i> {{ session.customer.phone or 'لا يوجد'
+                                                    }}
+                                                </small>
+                                            </div>
+
+                                            <!-- Quick Actions -->
+                                            <div class="btn-group-vertical w-100" role="group">
+                                                <button type="button" class="btn btn-success btn-sm mb-1"
+                                                    onclick="markSessionStatus({{ session.id }}, 'completed')">
+                                                    <i class="fas fa-check"></i> حضر
+                                                </button>
+                                                <button type="button" class="btn btn-warning btn-sm mb-1"
+                                                    onclick="markSessionStatus({{ session.id }}, 'no_show')">
+                                                    <i class="fas fa-times"></i> غياب
+                                                </button>
+                                                <button type="button" class="btn btn-danger btn-sm mb-1"
+                                                    onclick="markSessionStatus({{ session.id }}, 'cancelled')">
+                                                    <i class="fas fa-ban"></i> إلغاء
+                                                </button>
+                                                <a href="{{ url_for('session_detail', session_id=session.id) }}"
+                                                    class="btn btn-info btn-sm">
+                                                    <i class="fas fa-eye"></i> التفاصيل
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Today's Group Sessions -->
+            {% if todays_group_sessions %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">
+                        <i class="fas fa-users"></i> حصص المجموعات لليوم
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% for group_session in todays_group_sessions %}
+                    <div class="card border-left-success mb-3">
+                        <div class="card-header">
+                            <div class="row align-items-center">
+                                <div class="col">
+                                    <h5 class="mb-0">{{ group_session.group.name }}</h5>
+                                    <small class="text-muted">
+                                        {{ group_session.start_time.strftime('%H:%M') }} -
+                                        {{ group_session.end_time.strftime('%H:%M') }}
+                                        {% if group_session.topic %}| {{ group_session.topic }}{% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-auto">
+                                    <a href="{{ url_for('group_session_attendance', session_id=group_session.id) }}"
+                                        class="btn btn-primary">
+                                        <i class="fas fa-list-check"></i> أخذ الحضور
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6>أعضاء المجموعة:</h6>
+                                    <div class="row">
+                                        {% for member in group_session.group.members %}
+                                        {% if member.status == 'active' %}
+                                        <div class="col-md-6">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <div class="mr-2">
+                                                    <i class="fas fa-user-circle text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>{{ member.customer.first_name }} {{
+                                                        member.customer.last_name }}</strong>
+                                                    <br><small class="text-muted">{{ member.customer.phone or 'لا يوجد
+                                                        هاتف' }}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card bg-light">
+                                        <div class="card-body text-center">
+                                            <h6 class="card-title">معلومات المجموعة</h6>
+                                            <p class="card-text">
+                                                <strong>عدد الأعضاء:</strong>
+                                                {{ group_session.group.members|selectattr('status', 'equalto',
+                                                'active')|list|length }}
+                                                / {{ group_session.group.max_students }}
+                                            </p>
+                                            {% if group_session.location %}
+                                            <p class="card-text">
+                                                <strong>المكان:</strong> {{ group_session.location }}
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- No Sessions Today -->
+            {% if not todays_sessions and not todays_group_sessions %}
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <h5>لا توجد حصص مجدولة اليوم</h5>
+                    <p class="text-muted">استمتع بيومك!</p>
+                    <a href="{{ url_for('sessions') }}" class="btn btn-primary">
+                        <i class="fas fa-calendar"></i> عرض جميع الحصص
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i> تم بنجاح
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="successMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" data-dismiss="modal">حسناً</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function markSessionStatus(sessionId, status) {
+        const statusText = {
+            'completed': 'مكتملة',
+            'no_show': 'غياب',
+            'cancelled': 'ملغية'
+        };
+
+        if (confirm(`هل أنت متأكد من تعيين حالة الحصة إلى "${statusText[status]}"؟`)) {
+            fetch(`/sessions/${sessionId}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: status })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        $('#successMessage').text(data.message);
+                        $('#successModal').modal('show');
+
+                        // Refresh page after modal closes
+                        $('#successModal').on('hidden.bs.modal', function () {
+                            location.reload();
+                        });
+                    } else {
+                        alert('حدث خطأ: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('حدث خطأ في الاتصال');
+                });
+        }
+    }
+
+    // Auto-refresh every 5 minutes
+    setTimeout(function () {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock %}

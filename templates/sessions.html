@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Sessions - CRM System{% endblock %}
+{% block title %}Sessions - GENIOTECH{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -8,31 +8,88 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h2><i class="fas fa-calendar"></i> Session Management</h2>
+                    <h2><i class="fas fa-calendar"></i> إدارة الحصص</h2>
                     <p class="text-muted">
                         {% if current_user.role == 'instructor' %}
-                        Manage your scheduled sessions and appointments
+                        إدارة الحصص والمواعيد الخاصة بك
                         {% else %}
-                        View all sessions in the system
+                        عرض جميع الحصص في النظام
                         {% endif %}
                     </p>
                 </div>
-                <a href="{{ url_for('add_session') }}" class="btn btn-primary">
-                    <i class="fas fa-calendar-plus"></i> Schedule Session
-                </a>
+                <div class="btn-group">
+                    {% if current_user.role == 'instructor' %}
+                    <a href="{{ url_for('instructor_quick_attendance') }}" class="btn btn-success">
+                        <i class="fas fa-calendar-check"></i> حضور اليوم
+                    </a>
+                    {% endif %}
+                    {% if current_user.role in ['admin', 'customer_service'] %}
+                    <a href="{{ url_for('attendance_reports') }}" class="btn btn-info">
+                        <i class="fas fa-chart-bar"></i> تقارير الحضور
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('add_session') }}" class="btn btn-primary">
+                        <i class="fas fa-calendar-plus"></i> جدولة حصة
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Session Status Cards -->
+    <!-- Session Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter"></i> فلاتر البحث
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label>حالة الحصة:</label>
+                        <select name="status_filter" class="form-control">
+                            <option value="">جميع الحالات</option>
+                            <option value="scheduled" {% if status_filter=='scheduled' %}selected{% endif %}>مجدولة
+                            </option>
+                            <option value="completed" {% if status_filter=='completed' %}selected{% endif %}>مكتملة
+                            </option>
+                            <option value="no_show" {% if status_filter=='no_show' %}selected{% endif %}>غياب</option>
+                            <option value="cancelled" {% if status_filter=='cancelled' %}selected{% endif %}>ملغية
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label>فترة زمنية:</label>
+                        <select name="date_filter" class="form-control">
+                            <option value="">جميع التواريخ</option>
+                            <option value="today" {% if date_filter=='today' %}selected{% endif %}>اليوم</option>
+                            <option value="week" {% if date_filter=='week' %}selected{% endif %}>هذا الأسبوع</option>
+                            <option value="month" {% if date_filter=='month' %}selected{% endif %}>هذا الشهر</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> بحث
+                        </button>
+                        <a href="{{ url_for('sessions') }}" class="btn btn-secondary ml-2">
+                            <i class="fas fa-times"></i> إعادة تعيين
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Session Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h5>{{ sessions|length }}</h5>
-                            <small>Total Sessions</small>
+                            <h5>{% if stats %}{{ stats.total }}{% else %}{{ sessions|length }}{% endif %}</h5>
+                            <small>إجمالي الحصص</small>
                         </div>
                         <i class="fas fa-calendar fa-2x opacity-75"></i>
                     </div>
@@ -44,8 +101,9 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h5>{{ sessions|selectattr('status', 'eq', 'scheduled')|list|length }}</h5>
-                            <small>Scheduled</small>
+                            <h5>{% if stats %}{{ stats.scheduled }}{% else %}{{ sessions|selectattr('status', 'eq',
+                                'scheduled')|list|length }}{% endif %}</h5>
+                            <small>مجدولة</small>
                         </div>
                         <i class="fas fa-clock fa-2x opacity-75"></i>
                     </div>
@@ -57,8 +115,9 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h5>{{ sessions|selectattr('status', 'eq', 'completed')|list|length }}</h5>
-                            <small>Completed</small>
+                            <h5>{% if stats %}{{ stats.completed }}{% else %}{{ sessions|selectattr('status', 'eq',
+                                'completed')|list|length }}{% endif %}</h5>
+                            <small>مكتملة</small>
                         </div>
                         <i class="fas fa-check-circle fa-2x opacity-75"></i>
                     </div>
@@ -70,8 +129,9 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between">
                         <div>
-                            <h5>{{ sessions|selectattr('status', 'eq', 'no_show')|list|length }}</h5>
-                            <small>No-Shows</small>
+                            <h5>{% if stats %}{{ stats.no_show }}{% else %}{{ sessions|selectattr('status', 'eq',
+                                'no_show')|list|length }}{% endif %}</h5>
+                            <small>غياب</small>
                         </div>
                         <i class="fas fa-user-times fa-2x opacity-75"></i>
                     </div>
@@ -244,12 +304,20 @@
                 if (data.success) {
                     // Show success message
                     const alertDiv = document.createElement('div');
-                    alertDiv.className = 'alert alert-success alert-dismissible fade show';
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
                     alertDiv.innerHTML = `
                     <i class="fas fa-check-circle"></i> ${data.message}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 `;
-                    document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.row'));
+
+                    // Insert at the beginning of the container
+                    const container = document.querySelector('.container-fluid');
+                    const firstChild = container.firstElementChild;
+                    if (firstChild) {
+                        container.insertBefore(alertDiv, firstChild);
+                    } else {
+                        container.appendChild(alertDiv);
+                    }
 
                     // Reload the page to show updated status
                     setTimeout(() => {

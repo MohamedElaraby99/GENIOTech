@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Add Customer - CRM System{% endblock %}
+{% block title %}Add Customer - GENIOTECH{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -77,6 +77,27 @@
                                 {% endfor %}
                             </select>
                             <div class="form-text">Hold Ctrl (or Cmd on Mac) to select multiple instructors</div>
+                        </div>
+
+                        <!-- Group Assignment Section -->
+                        <div class="mb-3">
+                            <label for="group_ids" class="form-label">
+                                <i class="fas fa-users"></i> Add to Groups (Optional)
+                            </label>
+                            <select class="form-select" id="group_ids" name="group_ids" multiple size="4">
+                                {% for group in groups %}
+                                <option value="{{ group.id }}" {% if group.members|length>= group.max_students
+                                    %}disabled{% endif %}>
+                                    {{ group.name }} - {{ group.subject }}
+                                    ({{ group.members|length }}/{{ group.max_students }} students)
+                                    {% if group.members|length >= group.max_students %} - FULL{% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle"></i> Hold Ctrl (or Cmd on Mac) to select multiple groups.
+                                Customer will be automatically enrolled in selected groups.
+                            </div>
                         </div>
 
                         <div class="mb-3">

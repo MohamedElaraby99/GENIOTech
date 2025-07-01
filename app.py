@@ -65,6 +65,7 @@ class Customer(db.Model):
     age = db.Column(db.Integer)  # Customer age
     status = db.Column(db.String(20), default='active')  # active, inactive, needs_follow_up, no_show
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Track who added the customer
     initial_notes = db.Column(db.Text)
     
     # Many-to-many relationship with instructors
@@ -72,6 +73,9 @@ class Customer(db.Model):
                                          secondary=customer_instructor_association,
                                          backref=db.backref('assigned_customers', lazy='dynamic'),
                                          lazy='dynamic')
+    
+    # Relationship to track who created the customer
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='customers_created')
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -544,17 +548,48 @@ def admin_reports():
 @app.route('/customers')
 @login_required
 def customers():
-    # Get base query based on user role
+    # Instructors can only see their students (customers in their groups)
     if current_user.role == 'instructor':
-        query = Customer.query.filter(Customer.assigned_instructors.contains(current_user))
-    else:
-        query = Customer.query
+        # Get customers who are members of instructor's groups
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            # Get customers who are active members of these groups
+            customer_ids = db.session.query(GroupMember.customer_id).filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.status == 'active'
+            ).distinct().all()
+            customer_ids = [cid[0] for cid in customer_ids]
+            
+            if customer_ids:
+                customers = Customer.query.filter(Customer.id.in_(customer_ids)).all()
+            else:
+                customers = []
+        else:
+            customers = []
+        
+        # For instructors, we don't need complex filtering
+        return render_template('customers.html', 
+                             customers=customers,
+                             customer_service_staff=[],  # Empty for instructors
+                             age_filter=None, 
+                             min_age=None, 
+                             max_age=None,
+                             created_by_filter=None,
+                             enrollment_status_filter=None)
     
-    # Apply age filtering
+    # Get base query
+    query = Customer.query
+    
+    # Apply filters
     age_filter = request.args.get('age_filter')
     min_age = request.args.get('min_age')
     max_age = request.args.get('max_age')
+    created_by_filter = request.args.get('created_by_filter')
+    enrollment_status_filter = request.args.get('enrollment_status_filter')
     
+    # Age filtering
     if age_filter:
         if age_filter == 'under_18':
             query = query.filter(Customer.age < 18)
@@ -575,14 +610,49 @@ def customers():
         if max_age and max_age.isdigit():
             query = query.filter(Customer.age <= int(max_age))
     
+    # Filter by who created the customer
+    if created_by_filter and created_by_filter.isdigit():
+        query = query.filter(Customer.created_by_id == int(created_by_filter))
+    
+    # Filter by enrollment status
+    if enrollment_status_filter:
+        if enrollment_status_filter == 'enrolled':
+            # Customers who are enrolled in groups
+            query = query.filter(Customer.group_memberships.any(GroupMember.status == 'active'))
+        elif enrollment_status_filter == 'not_enrolled':
+            # Customers who are not enrolled in any active groups
+            query = query.filter(~Customer.group_memberships.any(GroupMember.status == 'active'))
+        elif enrollment_status_filter == 'has_courses':
+            # Customers who have individual courses
+            query = query.filter(Customer.courses.any())
+        elif enrollment_status_filter == 'no_courses':
+            # Customers who have no individual courses
+            query = query.filter(~Customer.courses.any())
+    
     customers = query.all()
     
-    return render_template('customers.html', customers=customers, 
-                         age_filter=age_filter, min_age=min_age, max_age=max_age)
+    # Get all customer service staff for the filter dropdown
+    customer_service_staff = User.query.filter(
+        User.role.in_(['admin', 'customer_service'])
+    ).order_by(User.first_name, User.last_name).all()
+    
+    return render_template('customers.html', 
+                         customers=customers,
+                         customer_service_staff=customer_service_staff,
+                         age_filter=age_filter, 
+                         min_age=min_age, 
+                         max_age=max_age,
+                         created_by_filter=created_by_filter,
+                         enrollment_status_filter=enrollment_status_filter)
 
 @app.route('/customers/add', methods=['GET', 'POST'])
 @login_required
 def add_customer():
+    # منع المدرسين من إضافة عملاء
+    if current_user.role == 'instructor':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
         # Handle age conversion
         age = None
@@ -596,7 +666,8 @@ def add_customer():
             phone=request.form.get('phone', ''),
             phone2=request.form.get('phone2', ''),
             age=age,
-            initial_notes=request.form.get('notes', '')
+            initial_notes=request.form.get('notes', ''),
+            created_by_id=current_user.id
         )
         db.session.add(customer)
         db.session.flush()  # Get the customer ID
@@ -610,12 +681,53 @@ def add_customer():
                     if instructor and instructor.role == 'instructor':
                         customer.assigned_instructors.append(instructor)
         
+        # Handle group assignments
+        group_ids = request.form.getlist('group_ids')
+        if group_ids:
+            for group_id in group_ids:
+                if group_id:  # Skip empty values
+                    group = Group.query.get(group_id)
+                    if group and group.status == 'active':
+                        # Check if group is not full
+                        current_members = GroupMember.query.filter_by(
+                            group_id=group.id, 
+                            status='active'
+                        ).count()
+                        
+                        if current_members < group.max_students:
+                            # Add customer to group
+                            group_member = GroupMember(
+                                group_id=group.id,
+                                customer_id=customer.id,
+                                status='active'
+                            )
+                            db.session.add(group_member)
+                            
+                            # Log this activity
+                            log_customer_event(
+                                customer_id=customer.id,
+                                event_type='group_joined',
+                                description=f'Enrolled in group: {group.name}',
+                                event_data={'group_id': group.id, 'group_name': group.name},
+                                created_by_id=current_user.id
+                            )
+                            
+                            log_group_event(
+                                group_id=group.id,
+                                event_type='member_added',
+                                description=f'Student {customer.first_name} {customer.last_name} enrolled',
+                                event_data={'customer_id': customer.id},
+                                created_by_id=current_user.id
+                            )
+        
         db.session.commit()
-        flash('Customer added successfully', 'success')
+        flash('Customer added successfully and enrolled in selected groups', 'success')
         return redirect(url_for('customers'))
     
     instructors = User.query.filter_by(role='instructor').all()
-    return render_template('add_customer.html', instructors=instructors)
+    # Get active groups for enrollment
+    groups = Group.query.filter_by(status='active').order_by(Group.name).all()
+    return render_template('add_customer.html', instructors=instructors, groups=groups)
 
 @app.route('/customers/<int:customer_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -656,6 +768,84 @@ def edit_customer(customer_id):
                         if instructor and instructor.role == 'instructor':
                             customer.assigned_instructors.append(instructor)
         
+        # Handle group management
+        if current_user.role in ['admin', 'customer_service', 'instructor']:
+            # Remove from selected groups
+            remove_group_ids = request.form.getlist('remove_group_ids')
+            for group_id in remove_group_ids:
+                if group_id:
+                    membership = GroupMember.query.filter_by(
+                        customer_id=customer.id,
+                        group_id=int(group_id),
+                        status='active'
+                    ).first()
+                    if membership:
+                        membership.status = 'dropped'
+                        group = Group.query.get(group_id)
+                        
+                        # Log this activity
+                        log_customer_event(
+                            customer_id=customer.id,
+                            event_type='group_left',
+                            description=f'Removed from group: {group.name}',
+                            event_data={'group_id': group.id, 'group_name': group.name},
+                            created_by_id=current_user.id
+                        )
+                        
+                        log_group_event(
+                            group_id=group.id,
+                            event_type='member_removed',
+                            description=f'Student {customer.first_name} {customer.last_name} removed',
+                            event_data={'customer_id': customer.id},
+                            created_by_id=current_user.id
+                        )
+            
+            # Add to new groups
+            add_group_ids = request.form.getlist('add_group_ids')
+            for group_id in add_group_ids:
+                if group_id:
+                    group = Group.query.get(group_id)
+                    if group and group.status == 'active':
+                        # Check if not already a member
+                        existing_membership = GroupMember.query.filter_by(
+                            customer_id=customer.id,
+                            group_id=group.id,
+                            status='active'
+                        ).first()
+                        
+                        if not existing_membership:
+                            # Check if group is not full
+                            current_members = GroupMember.query.filter_by(
+                                group_id=group.id,
+                                status='active'
+                            ).count()
+                            
+                            if current_members < group.max_students:
+                                # Add customer to group
+                                group_member = GroupMember(
+                                    group_id=group.id,
+                                    customer_id=customer.id,
+                                    status='active'
+                                )
+                                db.session.add(group_member)
+                                
+                                # Log this activity
+                                log_customer_event(
+                                    customer_id=customer.id,
+                                    event_type='group_joined',
+                                    description=f'Enrolled in group: {group.name}',
+                                    event_data={'group_id': group.id, 'group_name': group.name},
+                                    created_by_id=current_user.id
+                                )
+                                
+                                log_group_event(
+                                    group_id=group.id,
+                                    event_type='member_added',
+                                    description=f'Student {customer.first_name} {customer.last_name} enrolled',
+                                    event_data={'customer_id': customer.id},
+                                    created_by_id=current_user.id
+                                )
+        
         try:
             db.session.commit()
             flash('Customer updated successfully', 'success')
@@ -665,7 +855,26 @@ def edit_customer(customer_id):
             flash('Error updating customer', 'error')
     
     instructors = User.query.filter_by(role='instructor').all()
-    return render_template('edit_customer.html', customer=customer, instructors=instructors)
+    
+    # Get available groups (not already enrolled in)
+    customer_group_ids = [m.group_id for m in customer.group_memberships if m.status == 'active']
+    available_groups_query = Group.query.filter_by(status='active').filter(
+        ~Group.id.in_(customer_group_ids)
+    )
+    
+    available_groups = []
+    for group in available_groups_query.all():
+        current_members = GroupMember.query.filter_by(
+            group_id=group.id,
+            status='active'
+        ).count()
+        group.current_members = current_members
+        available_groups.append(group)
+    
+    return render_template('edit_customer.html', 
+                         customer=customer, 
+                         instructors=instructors,
+                         available_groups=available_groups)
 
 @app.route('/customers/<int:customer_id>/add_note', methods=['POST'])
 @login_required
@@ -694,6 +903,90 @@ def add_customer_note(customer_id):
         flash('Note content cannot be empty', 'error')
     
     return redirect(url_for('customer_detail', customer_id=customer_id))
+
+@app.route('/customers/<int:customer_id>/delete', methods=['POST'])
+@login_required
+def delete_customer(customer_id):
+    # Only allow admin and customer_service roles to delete customers
+    if current_user.role not in ['admin', 'customer_service']:
+        flash('Access denied', 'error')
+        return redirect(url_for('customers'))
+    
+    customer = Customer.query.get_or_404(customer_id)
+    
+    # Check if customer has any related data that would prevent deletion
+    has_tickets = bool(customer.tickets)
+    has_sessions = bool(customer.sessions)
+    has_courses = bool(customer.courses)
+    has_group_memberships = bool(customer.group_memberships)
+    has_notes = bool(customer.notes_list)
+    has_communications = bool(customer.communications)
+    has_performance_records = bool(customer.performance_records)
+    has_attendance_records = bool(customer.attendance_records)
+    has_history_events = bool(customer.history_events)
+    
+    # If customer has any related data, prevent deletion
+    if (has_tickets or has_sessions or has_courses or has_group_memberships or 
+        has_notes or has_communications or has_performance_records or 
+        has_attendance_records or has_history_events):
+        
+        related_items = []
+        if has_tickets:
+            related_items.append(f"{len(customer.tickets)} ticket(s)")
+        if has_sessions:
+            related_items.append(f"{len(customer.sessions)} session(s)")
+        if has_courses:
+            related_items.append(f"{len(customer.courses)} course(s)")
+        if has_group_memberships:
+            related_items.append(f"{len(customer.group_memberships)} group membership(s)")
+        if has_notes:
+            related_items.append(f"{len(customer.notes_list)} note(s)")
+        if has_communications:
+            related_items.append(f"{len(customer.communications)} communication(s)")
+        if has_performance_records:
+            related_items.append(f"{len(customer.performance_records)} performance record(s)")
+        if has_attendance_records:
+            related_items.append(f"{len(customer.attendance_records)} attendance record(s)")
+        if has_history_events:
+            related_items.append(f"{len(customer.history_events)} history event(s)")
+        
+        related_text = ", ".join(related_items)
+        flash(f'Cannot delete customer {customer.first_name} {customer.last_name}. Customer has {related_text}. Please remove or transfer these items first.', 'error')
+        return redirect(url_for('customers'))
+    
+    try:
+        # Log the deletion activity
+        log_activity(
+            entity_type='customer',
+            entity_id=customer.id,
+            action='deleted',
+            user_id=current_user.id,
+            description=f'Customer {customer.first_name} {customer.last_name} deleted',
+            old_values=json.dumps({
+                'first_name': customer.first_name,
+                'last_name': customer.last_name,
+                'phone': customer.phone,
+                'phone2': customer.phone2,
+                'age': customer.age,
+                'status': customer.status,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            })
+        )
+        
+        # Store customer name for flash message before deletion
+        customer_name = f"{customer.first_name} {customer.last_name}"
+        
+        # Delete the customer
+        db.session.delete(customer)
+        db.session.commit()
+        
+        flash(f'Customer {customer_name} has been deleted successfully', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting customer: {str(e)}', 'error')
+    
+    return redirect(url_for('customers'))
 
 @app.route('/customers/campaign', methods=['POST'])
 @login_required
@@ -747,6 +1040,26 @@ def send_whatsapp_campaign():
 @app.route('/customers/<int:customer_id>')
 @login_required
 def customer_detail(customer_id):
+    # Check if instructor can access this customer (must be in their groups)
+    if current_user.role == 'instructor':
+        # Check if customer is in any of instructor's groups
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            customer_in_groups = GroupMember.query.filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.customer_id == customer_id,
+                GroupMember.status == 'active'
+            ).first()
+            
+            if not customer_in_groups:
+                flash('Access denied. This student is not in your groups.', 'error')
+                return redirect(url_for('customers'))
+        else:
+            flash('Access denied', 'error')
+            return redirect(url_for('dashboard'))
+    
     customer = Customer.query.get_or_404(customer_id)
     
     # Check permissions
@@ -1123,16 +1436,77 @@ def import_customers():
 @app.route('/tickets')
 @login_required
 def tickets():
+    # Define sort order for ticket status (lower number = higher priority/top position)
+    status_priority = {
+        'urgent': 0,
+        'open': 1,
+        'in_progress': 2,
+        'resolved': 3,
+        'closed': 4
+    }
+    
     if current_user.role == 'customer_service':
-        tickets = Ticket.query.filter_by(assigned_to_id=current_user.id).all()
+        tickets_query = Ticket.query.filter_by(assigned_to_id=current_user.id)
+    elif current_user.role == 'instructor':
+        # Instructors see tickets for their students only
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            # Get customer IDs from instructor's groups
+            customer_ids = db.session.query(GroupMember.customer_id).filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.status == 'active'
+            ).distinct().all()
+            customer_ids = [cid[0] for cid in customer_ids]
+            
+            if customer_ids:
+                tickets_query = Ticket.query.filter(Ticket.customer_id.in_(customer_ids))
+            else:
+                tickets_query = Ticket.query.filter(Ticket.id == -1)  # No tickets
+        else:
+            tickets_query = Ticket.query.filter(Ticket.id == -1)  # No tickets
     else:
-        tickets = Ticket.query.all()
+        tickets_query = Ticket.query
+    
+    # Get all tickets and sort them
+    tickets = tickets_query.all()
+    
+    # Sort tickets by: 1) Status priority 2) Priority level 3) Creation date (newest first)
+    priority_order = {'urgent': 0, 'high': 1, 'medium': 2, 'low': 3}
+    
+    tickets.sort(key=lambda t: (
+        status_priority.get(t.status, 5),  # Status priority (resolved/closed go to bottom)
+        priority_order.get(t.priority, 4),  # Priority level
+        -t.id  # Newer tickets first (negative for descending order)
+    ))
+    
     return render_template('tickets.html', tickets=tickets)
 
 @app.route('/tickets/add', methods=['GET', 'POST'])
 @login_required
 def add_ticket():
     if request.method == 'POST':
+        # Check if instructor is trying to create ticket for their student
+        if current_user.role == 'instructor':
+            customer_id = int(request.form['customer_id'])
+            instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+            group_ids = [group.id for group in instructor_groups]
+            
+            if group_ids:
+                customer_in_groups = GroupMember.query.filter(
+                    GroupMember.group_id.in_(group_ids),
+                    GroupMember.customer_id == customer_id,
+                    GroupMember.status == 'active'
+                ).first()
+                
+                if not customer_in_groups:
+                    flash('Access denied. You can only create tickets for your students.', 'error')
+                    return redirect(url_for('add_ticket'))
+            else:
+                flash('Access denied', 'error')
+                return redirect(url_for('tickets'))
+        
         ticket = Ticket(
             title=request.form['title'],
             description=request.form['description'],
@@ -1145,7 +1519,28 @@ def add_ticket():
         flash('Ticket created successfully', 'success')
         return redirect(url_for('tickets'))
     
-    customers = Customer.query.all()
+    # Get customers based on user role
+    if current_user.role == 'instructor':
+        # Instructors see only their students
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            customer_ids = db.session.query(GroupMember.customer_id).filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.status == 'active'
+            ).distinct().all()
+            customer_ids = [cid[0] for cid in customer_ids]
+            
+            if customer_ids:
+                customers = Customer.query.filter(Customer.id.in_(customer_ids)).all()
+            else:
+                customers = []
+        else:
+            customers = []
+    else:
+        customers = Customer.query.all()
+    
     agents = User.query.filter_by(role='customer_service').all()
     return render_template('add_ticket.html', customers=customers, agents=agents)
 
@@ -1158,6 +1553,24 @@ def ticket_detail(ticket_id):
     if current_user.role == 'customer_service' and ticket.assigned_to_id != current_user.id:
         flash('Access denied. You can only view tickets assigned to you.', 'error')
         return redirect(url_for('tickets'))
+    elif current_user.role == 'instructor':
+        # Check if ticket is for instructor's student
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            customer_in_groups = GroupMember.query.filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.customer_id == ticket.customer_id,
+                GroupMember.status == 'active'
+            ).first()
+            
+            if not customer_in_groups:
+                flash('Access denied. This ticket is not for your students.', 'error')
+                return redirect(url_for('tickets'))
+        else:
+            flash('Access denied', 'error')
+            return redirect(url_for('tickets'))
     
     return render_template('ticket_detail.html', ticket=ticket)
 
@@ -1170,6 +1583,24 @@ def edit_ticket(ticket_id):
     if current_user.role == 'customer_service' and ticket.assigned_to_id != current_user.id:
         flash('Access denied. You can only edit tickets assigned to you.', 'error')
         return redirect(url_for('tickets'))
+    elif current_user.role == 'instructor':
+        # Check if ticket is for instructor's student
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            customer_in_groups = GroupMember.query.filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.customer_id == ticket.customer_id,
+                GroupMember.status == 'active'
+            ).first()
+            
+            if not customer_in_groups:
+                flash('Access denied. This ticket is not for your students.', 'error')
+                return redirect(url_for('tickets'))
+        else:
+            flash('Access denied', 'error')
+            return redirect(url_for('tickets'))
     
     if request.method == 'POST':
         ticket.title = request.form['title']
@@ -1193,7 +1624,28 @@ def edit_ticket(ticket_id):
         flash('Ticket updated successfully', 'success')
         return redirect(url_for('ticket_detail', ticket_id=ticket.id))
     
-    customers = Customer.query.all()
+    # Get customers based on user role
+    if current_user.role == 'instructor':
+        # Instructors see only their students
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            customer_ids = db.session.query(GroupMember.customer_id).filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.status == 'active'
+            ).distinct().all()
+            customer_ids = [cid[0] for cid in customer_ids]
+            
+            if customer_ids:
+                customers = Customer.query.filter(Customer.id.in_(customer_ids)).all()
+            else:
+                customers = []
+        else:
+            customers = []
+    else:
+        customers = Customer.query.all()
+    
     agents = User.query.filter_by(role='customer_service').all()
     return render_template('edit_ticket.html', ticket=ticket, customers=customers, agents=agents)
 
@@ -1206,6 +1658,24 @@ def resolve_ticket(ticket_id):
     if current_user.role == 'customer_service' and ticket.assigned_to_id != current_user.id:
         flash('Access denied. You can only resolve tickets assigned to you.', 'error')
         return redirect(url_for('tickets'))
+    elif current_user.role == 'instructor':
+        # Check if ticket is for instructor's student
+        instructor_groups = Group.query.filter_by(instructor_id=current_user.id).all()
+        group_ids = [group.id for group in instructor_groups]
+        
+        if group_ids:
+            customer_in_groups = GroupMember.query.filter(
+                GroupMember.group_id.in_(group_ids),
+                GroupMember.customer_id == ticket.customer_id,
+                GroupMember.status == 'active'
+            ).first()
+            
+            if not customer_in_groups:
+                flash('Access denied. This ticket is not for your students.', 'error')
+                return redirect(url_for('tickets'))
+        else:
+            flash('Access denied', 'error')
+            return redirect(url_for('tickets'))
     
     ticket.status = 'resolved'
     ticket.resolved_at = datetime.utcnow()
@@ -1219,11 +1689,55 @@ def resolve_ticket(ticket_id):
 @app.route('/sessions')
 @login_required
 def sessions():
+    # Get filter parameters
+    status_filter = request.args.get('status_filter')
+    date_filter = request.args.get('date_filter')
+    
     if current_user.role == 'instructor':
-        sessions = Session.query.filter_by(instructor_id=current_user.id).order_by(Session.scheduled_date).all()
+        # Instructors see only their own sessions
+        query = Session.query.filter_by(instructor_id=current_user.id)
     else:
-        sessions = Session.query.order_by(Session.scheduled_date).all()
-    return render_template('sessions.html', sessions=sessions)
+        # Admin and customer service see all sessions
+        query = Session.query
+    
+    # Apply filters
+    if status_filter and status_filter != 'all':
+        query = query.filter(Session.status == status_filter)
+    
+    if date_filter:
+        if date_filter == 'today':
+            today = datetime.now().date()
+            query = query.filter(Session.scheduled_date >= today, 
+                               Session.scheduled_date < today + timedelta(days=1))
+        elif date_filter == 'week':
+            today = datetime.now().date()
+            week_start = today - timedelta(days=today.weekday())
+            week_end = week_start + timedelta(days=7)
+            query = query.filter(Session.scheduled_date >= week_start, 
+                               Session.scheduled_date < week_end)
+        elif date_filter == 'month':
+            today = datetime.now().date()
+            month_start = today.replace(day=1)
+            if month_start.month == 12:
+                month_end = month_start.replace(year=month_start.year + 1, month=1)
+            else:
+                month_end = month_start.replace(month=month_start.month + 1)
+            query = query.filter(Session.scheduled_date >= month_start, 
+                               Session.scheduled_date < month_end)
+    
+    sessions = query.order_by(Session.scheduled_date.desc()).all()
+    
+    # Get statistics for display
+    stats = {
+        'total': len(sessions),
+        'scheduled': len([s for s in sessions if s.status == 'scheduled']),
+        'completed': len([s for s in sessions if s.status == 'completed']),
+        'no_show': len([s for s in sessions if s.status == 'no_show']),
+        'cancelled': len([s for s in sessions if s.status == 'cancelled'])
+    }
+    
+    return render_template('sessions.html', sessions=sessions, stats=stats, 
+                         status_filter=status_filter, date_filter=date_filter)
 
 @app.route('/sessions/add', methods=['GET', 'POST'])
 @login_required
@@ -1412,6 +1926,274 @@ def update_session_status(session_id):
         'new_status': new_status
     })
 
+# Attendance Reports and Statistics Routes
+@app.route('/admin/attendance-reports')
+@login_required
+def attendance_reports():
+    """Attendance reports and statistics for admin and customer service"""
+    if current_user.role not in ['admin', 'customer_service']:
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Get filter parameters
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    instructor_filter = request.args.get('instructor_filter')
+    group_filter = request.args.get('group_filter')
+    
+    # Build base queries
+    sessions_query = Session.query
+    group_sessions_query = GroupSession.query
+    
+    # Apply date filters
+    if date_from:
+        date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+        sessions_query = sessions_query.filter(Session.scheduled_date >= date_from_obj)
+        group_sessions_query = group_sessions_query.filter(GroupSession.session_date >= date_from_obj)
+    
+    if date_to:
+        date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+        sessions_query = sessions_query.filter(Session.scheduled_date <= date_to_obj)
+        group_sessions_query = group_sessions_query.filter(GroupSession.session_date <= date_to_obj)
+    
+    # Apply instructor filter
+    if instructor_filter:
+        sessions_query = sessions_query.filter(Session.instructor_id == instructor_filter)
+        group_sessions_query = group_sessions_query.join(Group).filter(Group.instructor_id == instructor_filter)
+    
+    # Apply group filter for group sessions
+    if group_filter:
+        group_sessions_query = group_sessions_query.filter(GroupSession.group_id == group_filter)
+    
+    # Get individual sessions data
+    individual_sessions = sessions_query.all()
+    
+    # Get group sessions data
+    group_sessions = group_sessions_query.all()
+    
+    # Calculate individual session statistics
+    individual_stats = {
+        'total_sessions': len(individual_sessions),
+        'completed': len([s for s in individual_sessions if s.status == 'completed']),
+        'no_show': len([s for s in individual_sessions if s.status == 'no_show']),
+        'cancelled': len([s for s in individual_sessions if s.status == 'cancelled']),
+        'scheduled': len([s for s in individual_sessions if s.status == 'scheduled']),
+    }
+    
+    # Calculate attendance rate for individual sessions
+    if individual_stats['total_sessions'] > 0:
+        individual_stats['attendance_rate'] = round(
+            (individual_stats['completed'] / individual_stats['total_sessions']) * 100, 2
+        )
+    else:
+        individual_stats['attendance_rate'] = 0
+    
+    # Calculate group session statistics
+    group_stats = {
+        'total_sessions': len(group_sessions),
+        'completed': len([s for s in group_sessions if s.status == 'completed']),
+        'cancelled': len([s for s in group_sessions if s.status == 'cancelled']),
+        'scheduled': len([s for s in group_sessions if s.status == 'scheduled']),
+    }
+    
+    # Get detailed attendance for group sessions
+    group_attendance_details = []
+    for session in group_sessions:
+        if session.status == 'completed':
+            attendance_records = GroupAttendance.query.filter_by(group_session_id=session.id).all()
+            total_members = len(attendance_records)
+            present_count = len([a for a in attendance_records if a.status == 'present'])
+            absent_count = len([a for a in attendance_records if a.status == 'absent'])
+            late_count = len([a for a in attendance_records if a.status == 'late'])
+            
+            group_attendance_details.append({
+                'session': session,
+                'total_members': total_members,
+                'present_count': present_count,
+                'absent_count': absent_count,
+                'late_count': late_count,
+                'attendance_rate': round((present_count / total_members * 100), 2) if total_members > 0 else 0
+            })
+    
+    # Get instructors and groups for filters
+    instructors = User.query.filter_by(role='instructor', is_active=True).all()
+    groups = Group.query.filter_by(status='active').all()
+    
+    return render_template('admin/attendance_reports.html',
+                         individual_stats=individual_stats,
+                         group_stats=group_stats,
+                         group_attendance_details=group_attendance_details,
+                         individual_sessions=individual_sessions,
+                         instructors=instructors,
+                         groups=groups,
+                         date_from=date_from,
+                         date_to=date_to,
+                         instructor_filter=instructor_filter,
+                         group_filter=group_filter)
+
+@app.route('/instructor/quick-attendance')
+@login_required
+def instructor_quick_attendance():
+    """Quick attendance interface for instructors"""
+    if current_user.role != 'instructor':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    # Get today's sessions for this instructor
+    today = datetime.now().date()
+    todays_sessions = Session.query.filter(
+        Session.instructor_id == current_user.id,
+        Session.scheduled_date >= today,
+        Session.scheduled_date < today + timedelta(days=1),
+        Session.status == 'scheduled'
+    ).order_by(Session.scheduled_date).all()
+    
+    # Get today's group sessions for this instructor
+    todays_group_sessions = GroupSession.query.join(Group).filter(
+        Group.instructor_id == current_user.id,
+        GroupSession.session_date == today,
+        GroupSession.status == 'scheduled'
+    ).order_by(GroupSession.start_time).all()
+    
+    # Format date in Arabic
+    arabic_days = {
+        'Monday': 'الاثنين',
+        'Tuesday': 'الثلاثاء', 
+        'Wednesday': 'الأربعاء',
+        'Thursday': 'الخميس',
+        'Friday': 'الجمعة',
+        'Saturday': 'السبت',
+        'Sunday': 'الأحد'
+    }
+    arabic_months = {
+        'January': 'يناير',
+        'February': 'فبراير',
+        'March': 'مارس',
+        'April': 'أبريل',
+        'May': 'مايو',
+        'June': 'يونيو',
+        'July': 'يوليو',
+        'August': 'أغسطس',
+        'September': 'سبتمبر',
+        'October': 'أكتوبر',
+        'November': 'نوفمبر',
+        'December': 'ديسمبر'
+    }
+    
+    day_name = arabic_days.get(today.strftime('%A'), today.strftime('%A'))
+    month_name = arabic_months.get(today.strftime('%B'), today.strftime('%B'))
+    formatted_date = f"{day_name}، {today.day} {month_name} {today.year}"
+    
+    return render_template('instructor/quick_attendance.html',
+                         todays_sessions=todays_sessions,
+                         todays_group_sessions=todays_group_sessions,
+                         current_date=today,
+                         formatted_date=formatted_date)
+
+@app.route('/groups/<int:group_id>/members/<int:customer_id>/attendance')
+@login_required
+def member_attendance_detail(group_id, customer_id):
+    """Detailed attendance view for a specific member in a group"""
+    group = Group.query.get_or_404(group_id)
+    customer = Customer.query.get_or_404(customer_id)
+    
+    # Check permissions
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        if current_user.role != 'admin' and current_user.role != 'customer_service':
+            flash('Access denied', 'error')
+            return redirect(url_for('groups'))
+    
+    # Verify the customer is a member of this group
+    membership = GroupMember.query.filter_by(
+        group_id=group_id, 
+        customer_id=customer_id, 
+        status='active'
+    ).first()
+    
+    if not membership:
+        flash('Customer is not an active member of this group', 'error')
+        return redirect(url_for('group_detail', group_id=group_id))
+    
+    # Get all attendance records for this member in this group
+    attendance_records = db.session.query(GroupAttendance, GroupSession).join(GroupSession).filter(
+        GroupSession.group_id == group_id,
+        GroupAttendance.customer_id == customer_id
+    ).order_by(GroupSession.session_date.desc(), GroupSession.start_time.desc()).all()
+    
+    # Calculate detailed statistics
+    total_sessions = len(attendance_records)
+    present_count = len([a for a, s in attendance_records if a.status == 'present'])
+    late_count = len([a for a, s in attendance_records if a.status == 'late'])
+    absent_count = len([a for a, s in attendance_records if a.status == 'absent'])
+    excused_count = len([a for a, s in attendance_records if a.status == 'excused'])
+    
+    attendance_rate = (present_count / total_sessions * 100) if total_sessions > 0 else 0
+    
+    # Calculate attendance streaks
+    current_streak = 0
+    longest_streak = 0
+    temp_streak = 0
+    
+    for attendance, session in attendance_records:
+        if attendance.status == 'present':
+            if current_streak == 0:  # Start counting from most recent
+                current_streak += 1
+            temp_streak += 1
+            longest_streak = max(longest_streak, temp_streak)
+        else:
+            if current_streak > 0:  # Stop counting recent streak
+                current_streak = 0
+            temp_streak = 0
+    
+    # Monthly attendance breakdown
+    monthly_stats = {}
+    for attendance, session in attendance_records:
+        month_key = session.session_date.strftime('%Y-%m')
+        if month_key not in monthly_stats:
+            monthly_stats[month_key] = {
+                'month_name': session.session_date.strftime('%B %Y'),
+                'total': 0,
+                'present': 0,
+                'late': 0,
+                'absent': 0,
+                'excused': 0
+            }
+        
+        monthly_stats[month_key]['total'] += 1
+        monthly_stats[month_key][attendance.status] += 1
+    
+    # Calculate monthly attendance rates
+    for month_data in monthly_stats.values():
+        month_data['attendance_rate'] = round(
+            (month_data['present'] / month_data['total'] * 100) if month_data['total'] > 0 else 0, 1
+        )
+    
+    # Get recent performance records
+    performance_records = Performance.query.filter_by(
+        customer_id=customer_id,
+        group_id=group_id
+    ).order_by(Performance.assessment_date.desc()).limit(10).all()
+    
+    attendance_stats = {
+        'total_sessions': total_sessions,
+        'present_count': present_count,
+        'late_count': late_count,
+        'absent_count': absent_count,
+        'excused_count': excused_count,
+        'attendance_rate': round(attendance_rate, 1),
+        'current_streak': current_streak,
+        'longest_streak': longest_streak,
+        'monthly_stats': monthly_stats
+    }
+    
+    return render_template('group_member_attendance.html',
+                         group=group,
+                         customer=customer,
+                         membership=membership,
+                         attendance_records=attendance_records,
+                         attendance_stats=attendance_stats,
+                         performance_records=performance_records)
+
 # API Routes for AJAX
 @app.route('/api/dashboard_stats')
 @login_required
@@ -1424,13 +2206,49 @@ def api_dashboard_stats():
             'open_tickets': Ticket.query.filter_by(status='open').count()
         }
     elif current_user.role == 'instructor':
+        # Get today's sessions count (both individual and group sessions)
+        today = datetime.now().date()
+        individual_sessions_today = Session.query.filter_by(instructor_id=current_user.id).filter(
+            Session.scheduled_date >= today,
+            Session.scheduled_date < today + timedelta(days=1)
+        ).count()
+        
+        group_sessions_today = GroupSession.query.join(Group).filter(
+            Group.instructor_id == current_user.id,
+            GroupSession.session_date == today
+        ).count()
+        
+        # Get this week's sessions count
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        
+        weekly_sessions = GroupSession.query.join(Group).filter(
+            Group.instructor_id == current_user.id,
+            GroupSession.session_date >= week_start,
+            GroupSession.session_date <= week_end
+        ).count()
+        
+        # Get active groups
+        active_groups = Group.query.filter_by(instructor_id=current_user.id, status='active').count()
+        
+        # Get total students across all groups
+        total_students = db.session.query(GroupMember).join(Group).filter(
+            Group.instructor_id == current_user.id,
+            GroupMember.status == 'active'
+        ).count()
+        
+        # Get completed sessions this month
+        month_start = today.replace(day=1)
+        completed_sessions = Session.query.filter_by(instructor_id=current_user.id, status='completed').filter(
+            Session.scheduled_date >= month_start
+        ).count()
+        
         stats = {
-            'my_customers': Customer.query.filter_by(assigned_instructor_id=current_user.id).count(),
-            'today_sessions': Session.query.filter_by(instructor_id=current_user.id).filter(
-                Session.scheduled_date >= datetime.now().date(),
-                Session.scheduled_date < datetime.now().date() + timedelta(days=1)
-            ).count(),
-            'completed_sessions': Session.query.filter_by(instructor_id=current_user.id, status='completed').count()
+            'today_sessions': individual_sessions_today + group_sessions_today,
+            'completed_sessions': completed_sessions,
+            'active_groups': active_groups,
+            'total_students': total_students,
+            'weekly_sessions': weekly_sessions
         }
     elif current_user.role == 'customer_service':
         stats = {
@@ -1737,7 +2555,7 @@ def export_summary_pdf():
     
     # Footer
     elements.append(Spacer(1, 30))
-    footer = Paragraph("Generated by GENIO TECH CRM System", styles['Normal'])
+    footer = Paragraph("Generated by GENIO TECH GENIOTECH", styles['Normal'])
     elements.append(footer)
     
     # Build PDF
@@ -1910,6 +2728,11 @@ def groups_weekly():
 @app.route('/groups/add', methods=['GET', 'POST'])
 @login_required
 def add_group():
+    # Prevent instructors from creating new groups
+    if current_user.role == 'instructor':
+        flash('Access denied. Instructors cannot create new groups.', 'error')
+        return redirect(url_for('groups'))
+    
     if request.method == 'POST':
         group = Group(
             name=request.form['name'],
@@ -2074,6 +2897,84 @@ def group_detail(group_id):
                                    for s in all_sessions]) / len(all_sessions) if all_sessions else 0
     }
     
+    # Create detailed attendance matrix for table display
+    attendance_matrix = {}
+    completed_sessions = [s for s in all_sessions if s.status == 'completed']
+    completed_sessions.sort(key=lambda x: x.session_date, reverse=True)
+    
+    # Limit to last 20 sessions for performance
+    recent_completed_sessions = completed_sessions[:20]
+    
+    for session in recent_completed_sessions:
+        session_key = f"{session.session_date}_{session.id}"
+        attendance_matrix[session_key] = {
+            'session': session,
+            'attendance': {}
+        }
+        
+        # Get attendance records for this session
+        session_attendance = GroupAttendance.query.filter_by(group_session_id=session.id).all()
+        for record in session_attendance:
+            attendance_matrix[session_key]['attendance'][record.customer_id] = {
+                'status': record.status,
+                'notes': record.notes,
+                'recorded_at': record.recorded_at
+            }
+    
+    # Enhanced member performance with detailed attendance history
+    enhanced_member_performance = []
+    for member, customer in members:
+        # Get all attendance records for this member
+        member_attendance_records = db.session.query(GroupAttendance).join(GroupSession).filter(
+            GroupSession.group_id == group_id,
+            GroupAttendance.customer_id == customer.id,
+            GroupSession.status == 'completed'
+        ).order_by(GroupSession.session_date.desc()).all()
+        
+        # Calculate detailed statistics
+        total_sessions = len(member_attendance_records)
+        present_count = len([a for a in member_attendance_records if a.status == 'present'])
+        late_count = len([a for a in member_attendance_records if a.status == 'late'])
+        absent_count = len([a for a in member_attendance_records if a.status == 'absent'])
+        excused_count = len([a for a in member_attendance_records if a.status == 'excused'])
+        
+        attendance_percentage = (present_count / total_sessions * 100) if total_sessions > 0 else 0
+        
+        # Get recent attendance (last 10 sessions)
+        recent_attendance = member_attendance_records[:10]
+        
+        # Calculate attendance streak (consecutive present sessions)
+        current_streak = 0
+        for record in member_attendance_records:
+            if record.status == 'present':
+                current_streak += 1
+            else:
+                break
+        
+        # Get performance records
+        performance_records = Performance.query.filter_by(
+            customer_id=customer.id,
+            group_id=group_id
+        ).order_by(Performance.assessment_date.desc()).all()
+        
+        avg_score = sum([p.score for p in performance_records if p.score]) / len(performance_records) if performance_records else None
+        
+        enhanced_member_performance.append({
+            'member': member,
+            'customer': customer,
+            'attendance_rate': attendance_percentage,
+            'total_sessions': total_sessions,
+            'present_count': present_count,
+            'late_count': late_count,
+            'absent_count': absent_count,
+            'excused_count': excused_count,
+            'current_streak': current_streak,
+            'recent_attendance': recent_attendance,
+            'avg_score': avg_score,
+            'recent_performances': performance_records[:3],
+            'attendance_records': member_attendance_records
+        })
+    
     return render_template('group_detail.html', 
                          group=group, 
                          members=members,
@@ -2081,10 +2982,13 @@ def group_detail(group_id):
                          upcoming_sessions=upcoming_sessions, 
                          recent_sessions=recent_sessions,
                          available_customers=available_customers,
-                         member_performance=member_performance,
+                         member_performance=enhanced_member_performance,
                          group_history=group_history,
                          group_stats=group_stats,
-                         monthly_progress=monthly_progress)
+                         monthly_progress=monthly_progress,
+                         attendance_matrix=attendance_matrix,
+                         recent_completed_sessions=recent_completed_sessions,
+                         current_date=datetime.now().date())
 
 @app.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -2140,6 +3044,13 @@ def edit_group(group_id):
 @login_required
 def add_group_member(group_id):
     group = Group.query.get_or_404(group_id)
+    
+    # Check permissions - instructors can only manage their own groups
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        flash('Access denied. You can only manage your own groups.', 'error')
+        return redirect(url_for('group_detail', group_id=group_id))
+        
+    group = Group.query.get_or_404(group_id)
     customer_id = request.form['customer_id']
     
     # Check if already a member
@@ -2171,11 +3082,102 @@ def add_group_member(group_id):
 @app.route('/groups/<int:group_id>/members/<int:member_id>/remove', methods=['POST'])
 @login_required
 def remove_group_member(group_id, member_id):
+    group = Group.query.get_or_404(group_id)
+    
+    # Check permissions - instructors can only manage their own groups
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        flash('Access denied. You can only manage your own groups.', 'error')
+        return redirect(url_for('group_detail', group_id=group_id))
+        
     member = GroupMember.query.get_or_404(member_id)
     member.status = 'inactive'
     db.session.commit()
     flash('Member removed from group.', 'success')
     return redirect(url_for('group_detail', group_id=group_id))
+
+@app.route('/groups/<int:group_id>/delete', methods=['POST'])
+@login_required
+def delete_group(group_id):
+    # Only allow admin and customer_service roles to delete groups
+    if current_user.role not in ['admin', 'customer_service']:
+        flash('Access denied', 'error')
+        return redirect(url_for('groups'))
+    
+    group = Group.query.get_or_404(group_id)
+    
+    # Check if group has any related data that would prevent deletion
+    has_schedules = bool(group.schedules)
+    has_members = bool(group.members)
+    has_group_sessions = bool(group.group_sessions)
+    has_performance_records = bool(group.performance_records)
+    has_history_events = bool(group.history_events)
+    
+    # Check for attendance records through group sessions
+    has_attendance_records = False
+    if has_group_sessions:
+        for session in group.group_sessions:
+            if session.attendance_records:
+                has_attendance_records = True
+                break
+    
+    # If group has any related data, prevent deletion
+    if (has_schedules or has_members or has_group_sessions or 
+        has_performance_records or has_history_events or has_attendance_records):
+        
+        related_items = []
+        if has_schedules:
+            related_items.append(f"{len(group.schedules)} schedule(s)")
+        if has_members:
+            related_items.append(f"{len(group.members)} member(s)")
+        if has_group_sessions:
+            related_items.append(f"{len(group.group_sessions)} session(s)")
+        if has_performance_records:
+            related_items.append(f"{len(group.performance_records)} performance record(s)")
+        if has_attendance_records:
+            total_attendance = sum(len(session.attendance_records) for session in group.group_sessions)
+            related_items.append(f"{total_attendance} attendance record(s)")
+        if has_history_events:
+            related_items.append(f"{len(group.history_events)} history event(s)")
+        
+        related_text = ", ".join(related_items)
+        flash(f'Cannot delete group {group.name}. Group has {related_text}. Please remove or transfer these items first.', 'error')
+        return redirect(url_for('groups'))
+    
+    try:
+        # Log the deletion activity
+        log_activity(
+            entity_type='group',
+            entity_id=group.id,
+            action='deleted',
+            user_id=current_user.id,
+            description=f'Group {group.name} deleted',
+            old_values=json.dumps({
+                'name': group.name,
+                'subject': group.subject,
+                'description': group.description,
+                'instructor_id': group.instructor_id,
+                'max_students': group.max_students,
+                'status': group.status,
+                'start_date': group.start_date.isoformat() if group.start_date else None,
+                'end_date': group.end_date.isoformat() if group.end_date else None,
+                'created_at': group.created_at.isoformat() if group.created_at else None
+            })
+        )
+        
+        # Store group name for flash message before deletion
+        group_name = group.name
+        
+        # Delete the group
+        db.session.delete(group)
+        db.session.commit()
+        
+        flash(f'Group {group_name} has been deleted successfully', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting group: {str(e)}', 'error')
+    
+    return redirect(url_for('groups'))
 
 @app.route('/groups/<int:group_id>/sessions')
 @login_required
@@ -2196,6 +3198,13 @@ def group_sessions(group_id):
 @app.route('/groups/<int:group_id>/sessions/add', methods=['POST'])
 @login_required
 def add_group_session(group_id):
+    group = Group.query.get_or_404(group_id)
+    
+    # Check permissions - instructors can only manage their own groups
+    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
+        flash('Access denied. You can only schedule sessions for your own groups.', 'error')
+        return redirect(url_for('group_sessions', group_id=group_id))
+        
     group = Group.query.get_or_404(group_id)
     
     session = GroupSession(
@@ -2261,6 +3270,11 @@ def group_session_attendance(session_id):
 @login_required
 def add_performance_record():
     """Add a performance/assessment record for a student"""
+    # منع المدرسين من إضافة تقييمات
+    if current_user.role == 'instructor':
+        flash('Access denied. Instructors cannot add assessments.', 'error')
+        return redirect(url_for('group_detail', group_id=request.form.get('group_id', 1)))
+        
     try:
         performance = Performance(
             customer_id=request.form['customer_id'],

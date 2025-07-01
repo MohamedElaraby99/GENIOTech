@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Customers - CRM System{% endblock %}
+{% block title %}Customers - GENIOTECH{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -89,14 +89,15 @@
         </div>
     </div>
 
-    <!-- Age Filtering -->
+    <!-- Filters -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-body">
-                    <h6 class="card-title"><i class="fas fa-filter"></i> Filter by Age</h6>
+                    <h6 class="card-title"><i class="fas fa-filter"></i> Filters</h6>
                     <form method="GET" class="row g-3">
-                        <div class="col-md-3">
+                        <!-- Age Filters -->
+                        <div class="col-md-2">
                             <label for="age_filter" class="form-label">Age Group</label>
                             <select class="form-select" id="age_filter" name="age_filter">
                                 <option value="">All Ages</option>
@@ -114,19 +115,58 @@
                                 </option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label for="min_age" class="form-label">Min Age</label>
                             <input type="number" class="form-control" id="min_age" name="min_age"
                                 value="{{ min_age or '' }}" min="1" max="120" placeholder="Min">
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label for="max_age" class="form-label">Max Age</label>
                             <input type="number" class="form-control" id="max_age" name="max_age"
                                 value="{{ max_age or '' }}" min="1" max="120" placeholder="Max">
                         </div>
-                        <div class="col-md-3 d-flex align-items-end">
+
+                        <!-- Added By Filter -->
+                        <div class="col-md-2">
+                            <label for="created_by_filter" class="form-label">Added By</label>
+                            <select class="form-select" id="created_by_filter" name="created_by_filter">
+                                <option value="">All Staff</option>
+                                {% for staff in customer_service_staff %}
+                                <option value="{{ staff.id }}" {{ 'selected' if created_by_filter==staff.id|string
+                                    else '' }}>
+                                    {{ staff.first_name }} {{ staff.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Enrollment Status Filter -->
+                        <div class="col-md-2">
+                            <label for="enrollment_status_filter" class="form-label">Course Status</label>
+                            <select class="form-select" id="enrollment_status_filter" name="enrollment_status_filter">
+                                <option value="">All Statuses</option>
+                                <option value="enrolled" {{ 'selected' if enrollment_status_filter=='enrolled' else ''
+                                    }}>
+                                    Enrolled in Groups
+                                </option>
+                                <option value="not_enrolled" {{ 'selected' if enrollment_status_filter=='not_enrolled'
+                                    else '' }}>
+                                    Not in Groups
+                                </option>
+                                <option value="has_courses" {{ 'selected' if enrollment_status_filter=='has_courses'
+                                    else '' }}>
+                                    Has Individual Courses
+                                </option>
+                                <option value="no_courses" {{ 'selected' if enrollment_status_filter=='no_courses'
+                                    else '' }}>
+                                    No Courses
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-2 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary me-2">
-                                <i class="fas fa-filter"></i> Apply Filter
+                                <i class="fas fa-filter"></i> Apply
                             </button>
                             <a href="{{ url_for('customers') }}" class="btn btn-outline-secondary">
                                 <i class="fas fa-times"></i> Clear
@@ -185,6 +225,8 @@
                                     <th>Phone 2</th>
                                     <th>Age</th>
                                     <th>Status</th>
+                                    <th>Added By</th>
+                                    <th>Course Status</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
@@ -251,6 +293,36 @@
                                             {{ customer.status.replace('_', ' ').title() }}
                                         </span>
                                     </td>
+                                    <td>
+                                        {% if customer.created_by %}
+                                        <span class="text-muted small">
+                                            <i class="fas fa-user"></i> {{ customer.created_by.first_name }} {{
+                                            customer.created_by.last_name }}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set active_groups = customer.group_memberships|selectattr('status',
+                                        'equalto', 'active')|list %}
+                                        {% set has_courses = customer.courses|list %}
+                                        {% if active_groups %}
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-users"></i> In {{ active_groups|length }} Group{{ 's' if
+                                            active_groups|length > 1 else '' }}
+                                        </span>
+                                        {% elif has_courses %}
+                                        <span class="badge bg-info">
+                                            <i class="fas fa-book"></i> {{ has_courses|length }} Course{{ 's' if
+                                            has_courses|length > 1 else '' }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            <i class="fas fa-minus"></i> No Courses
+                                        </span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ customer.created_at.strftime('%Y-%m-%d') }}</td>
                                     <td>
                                         <div class="btn-group btn-group-sm" role="group">
@@ -267,6 +339,13 @@
                                                 data-bs-target="#addNoteModal{{ customer.id }}">
                                                 <i class="fas fa-sticky-note"></i>
                                             </button>
+                                            {% if current_user.role in ['admin', 'customer_service'] %}
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                title="Delete Customer" data-bs-toggle="modal"
+                                                data-bs-target="#deleteCustomerModal{{ customer.id }}">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
@@ -318,6 +397,83 @@
         </div>
     </div>
 </div>
+{% endfor %}
+
+<!-- Delete Customer Modals -->
+{% for customer in customers %}
+{% if current_user.role in ['admin', 'customer_service'] %}
+<div class="modal fade" id="deleteCustomerModal{{ customer.id }}" tabindex="-1"
+    aria-labelledby="deleteCustomerModalLabel{{ customer.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteCustomerModalLabel{{ customer.id }}">
+                    <i class="fas fa-exclamation-triangle"></i> Confirm Customer Deletion
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-warning"></i>
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+
+                <p>Are you sure you want to delete the following customer?</p>
+
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title"><strong>{{ customer.first_name }} {{ customer.last_name }}</strong></h6>
+                        <p class="card-text mb-1">
+                            <i class="fas fa-phone"></i> Phone: {{ customer.phone or 'N/A' }}
+                        </p>
+                        {% if customer.phone2 %}
+                        <p class="card-text mb-1">
+                            <i class="fas fa-phone"></i> Phone 2: {{ customer.phone2 }}
+                        </p>
+                        {% endif %}
+                        <p class="card-text mb-1">
+                            <i class="fas fa-calendar"></i> Age: {{ customer.age or 'N/A' }}
+                        </p>
+                        <p class="card-text mb-1">
+                            <i class="fas fa-info-circle"></i> Status:
+                            <span
+                                class="badge bg-{{ 'success' if customer.status == 'active' else 'warning' if customer.status == 'needs_follow_up' else 'danger' if customer.status == 'no_show' else 'secondary' }}">
+                                {{ customer.status.replace('_', ' ').title() }}
+                            </span>
+                        </p>
+                        <p class="card-text mb-0">
+                            <i class="fas fa-user-plus"></i> Added: {{ customer.created_at.strftime('%Y-%m-%d') }}
+                            {% if customer.created_by %} by {{ customer.created_by.first_name }} {{
+                            customer.created_by.last_name }}{% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Note:</strong> The customer can only be deleted if they have no related records
+                        (tickets, sessions, courses, group memberships, notes, etc.). If deletion fails,
+                        you will need to remove or transfer these records first.
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <form method="POST" action="{{ url_for('delete_customer', customer_id=customer.id) }}"
+                    style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Yes, Delete Customer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endfor %}
 
 <!-- WhatsApp Campaign Modal -->

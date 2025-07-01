@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Instructor Dashboard - CRM System{% endblock %}
+{% block title %}Instructor Dashboard - GENIOTECH{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -13,7 +13,7 @@
                         <i class="fas fa-chalkboard-teacher me-3"></i>Instructor Dashboard
                     </h1>
                     <p class="dashboard-subtitle mb-0">
-                        Welcome back, {{ current_user.first_name }}! Manage your students and teaching sessions.
+                        Welcome back, {{ current_user.first_name }}! Manage your groups and teaching sessions.
                     </p>
                 </div>
                 <div class="col-md-4 text-md-end mt-3 mt-md-0">
@@ -28,25 +28,7 @@
 
     <!-- Modern Statistics Cards -->
     <div class="row g-4 mb-4">
-        <div class="col-xl-4 col-lg-6 col-md-6">
-            <div class="stats-card">
-                <div class="card-body">
-                    <div class="stats-icon text-primary">
-                        <i class="fas fa-user-graduate"></i>
-                    </div>
-                    <div class="stats-number text-primary" id="my-customers">-</div>
-                    <div class="stats-label text-primary">My Students</div>
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="fas fa-users text-primary me-1"></i>
-                            Active learners
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-4 col-lg-6 col-md-6">
+        <div class="col-xl-6 col-lg-6 col-md-6">
             <div class="stats-card">
                 <div class="card-body">
                     <div class="stats-icon text-success">
@@ -64,7 +46,7 @@
             </div>
         </div>
 
-        <div class="col-xl-4 col-lg-6 col-md-6">
+        <div class="col-xl-6 col-lg-6 col-md-6">
             <div class="stats-card">
                 <div class="card-body">
                     <div class="stats-icon text-info">
@@ -94,24 +76,19 @@
                 </div>
                 <div class="card-body quick-actions">
                     <div class="row g-3">
-                        <div class="col-xl-3 col-lg-6 col-md-6">
-                            <a href="{{ url_for('customers') }}" class="btn btn-primary w-100">
-                                <i class="fas fa-users me-2"></i>My Students
+                        <div class="col-xl-4 col-lg-6 col-md-6">
+                            <a href="{{ url_for('groups') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-users me-2"></i>My Groups
                             </a>
                         </div>
-                        <div class="col-xl-3 col-lg-6 col-md-6">
+                        <div class="col-xl-4 col-lg-6 col-md-6">
                             <a href="{{ url_for('sessions') }}" class="btn btn-success w-100">
                                 <i class="fas fa-calendar me-2"></i>My Schedule
                             </a>
                         </div>
-                        <div class="col-xl-3 col-lg-6 col-md-6">
-                            <a href="{{ url_for('add_session') }}" class="btn btn-info w-100">
-                                <i class="fas fa-calendar-plus me-2"></i>Schedule Session
-                            </a>
-                        </div>
-                        <div class="col-xl-3 col-lg-6 col-md-6">
-                            <a href="{{ url_for('add_customer') }}" class="btn btn-warning w-100">
-                                <i class="fas fa-user-plus me-2"></i>Add Student
+                        <div class="col-xl-4 col-lg-6 col-md-6">
+                            <a href="{{ url_for('instructor_quick_attendance') }}" class="btn btn-info w-100">
+                                <i class="fas fa-calendar-check me-2"></i>Today's Attendance
                             </a>
                         </div>
                     </div>
@@ -145,50 +122,50 @@
             </div>
         </div>
 
-        <!-- Student Analytics & Quick Stats -->
+        <!-- Groups Overview -->
         <div class="col-lg-4">
             <div class="modern-card mb-4">
                 <div class="card-header d-flex align-items-center">
-                    <i class="fas fa-chart-pie text-success me-2"></i>
-                    <h5 class="mb-0">Student Analytics</h5>
+                    <i class="fas fa-users text-success me-2"></i>
+                    <h5 class="mb-0">My Groups</h5>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold">Active Students</span>
-                            <span class="status-badge status-success">0</span>
+                            <span class="fw-bold">Active Groups</span>
+                            <span class="status-badge status-success" id="active-groups">0</span>
                         </div>
                         <div class="modern-progress">
                             <div class="progress-bar bg-success" style="width: 100%"></div>
                         </div>
-                        <small class="text-muted">Attending regular sessions</small>
+                        <small class="text-muted">Currently teaching</small>
                     </div>
 
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold">Need Follow-up</span>
-                            <span class="status-badge status-warning">0</span>
+                            <span class="fw-bold">Total Students</span>
+                            <span class="status-badge status-info" id="total-students">0</span>
                         </div>
                         <div class="modern-progress">
-                            <div class="progress-bar bg-warning" style="width: 0%"></div>
+                            <div class="progress-bar bg-info" style="width: 85%"></div>
                         </div>
-                        <small class="text-muted">Require extra attention</small>
+                        <small class="text-muted">Across all groups</small>
                     </div>
 
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-bold">No-Shows</span>
-                            <span class="status-badge status-danger">0</span>
+                            <span class="fw-bold">Weekly Sessions</span>
+                            <span class="status-badge status-warning" id="weekly-sessions">0</span>
                         </div>
                         <div class="modern-progress">
-                            <div class="progress-bar bg-danger" style="width: 0%"></div>
+                            <div class="progress-bar bg-warning" style="width: 70%"></div>
                         </div>
-                        <small class="text-muted">Missed recent sessions</small>
+                        <small class="text-muted">Scheduled this week</small>
                     </div>
 
                     <div class="text-center mt-4 pt-3 border-top">
-                        <a href="{{ url_for('customers') }}" class="btn btn-outline-primary">
-                            <i class="fas fa-users me-2"></i>View All Students
+                        <a href="{{ url_for('groups') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-users me-2"></i>View All Groups
                         </a>
                     </div>
                 </div>
@@ -269,21 +246,27 @@
         fetch('/api/dashboard_stats')
             .then(response => response.json())
             .then(data => {
-                const myCustomers = document.getElementById('my-customers');
                 const todaySessions = document.getElementById('today-sessions');
                 const completedSessions = document.getElementById('completed-sessions');
+                const activeGroups = document.getElementById('active-groups');
+                const totalStudents = document.getElementById('total-students');
+                const weeklySessions = document.getElementById('weekly-sessions');
 
                 // Animate counters
-                if (data.my_customers) animateCounter(myCustomers, data.my_customers);
                 if (data.today_sessions) animateCounter(todaySessions, data.today_sessions);
                 if (data.completed_sessions) animateCounter(completedSessions, data.completed_sessions);
+                if (data.active_groups) animateCounter(activeGroups, data.active_groups);
+                if (data.total_students) animateCounter(totalStudents, data.total_students);
+                if (data.weekly_sessions) animateCounter(weeklySessions, data.weekly_sessions);
             })
             .catch(error => {
                 console.error('Error loading stats:', error);
                 // Set default values if API fails
-                document.getElementById('my-customers').textContent = '0';
                 document.getElementById('today-sessions').textContent = '0';
                 document.getElementById('completed-sessions').textContent = '0';
+                document.getElementById('active-groups').textContent = '0';
+                document.getElementById('total-students').textContent = '0';
+                document.getElementById('weekly-sessions').textContent = '0';
             });
     });
 </script>

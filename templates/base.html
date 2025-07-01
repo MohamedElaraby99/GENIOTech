@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CRM System{% endblock %}</title>
+    <title>{% block title %}GENIOTECH{% endblock %}</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -82,7 +82,7 @@
             <a class="navbar-brand" href="{{ url_for('dashboard') }}">
                 <img src="{{ url_for('static', filename='images/GENIOTECH.png') }}" alt="GENIO TECH" height="40"
                     class="me-2">
-                CRM System
+                GENIOTECH
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -108,15 +108,20 @@
                             </li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_reports') }}">Reports & Analytics</a>
                             </li>
+                            <li><a class="dropdown-item" href="{{ url_for('attendance_reports') }}">
+                                    <i class="fas fa-chart-bar"></i> Attendance Reports</a>
+                            </li>
                         </ul>
                     </li>
                     {% endif %}
 
+                    {% if current_user.role != 'instructor' %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('customers') }}">
                             <i class="fas fa-user-friends"></i> Customers
                         </a>
                     </li>
+                    {% endif %}
 
 
 
@@ -127,18 +132,36 @@
                     </li>
 
                     {% if current_user.role in ['customer_service', 'admin'] %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('tickets') }}">
-                            <i class="fas fa-ticket-alt"></i> Tickets
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-headset"></i> Customer Service
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('tickets') }}">
+                                    <i class="fas fa-ticket-alt"></i> Support Tickets</a>
+                            </li>
+                            <li><a class="dropdown-item" href="{{ url_for('attendance_reports') }}">
+                                    <i class="fas fa-chart-bar"></i> Attendance Reports</a>
+                            </li>
+                        </ul>
                     </li>
                     {% endif %}
 
                     {% if current_user.role in ['instructor', 'admin'] %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('sessions') }}">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-calendar"></i> Sessions
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('sessions') }}">
+                                    <i class="fas fa-list"></i> All Sessions</a>
+                            </li>
+                            {% if current_user.role == 'instructor' %}
+                            <li><a class="dropdown-item" href="{{ url_for('instructor_quick_attendance') }}">
+                                    <i class="fas fa-calendar-check"></i> Today's Attendance</a>
+                            </li>
+                            {% endif %}
+                        </ul>
                     </li>
                     {% endif %}
                 </ul>
@@ -235,9 +258,11 @@
                         <li class="mb-2"><a
                                 href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login') }}"><i
                                     class="fas fa-tachometer-alt me-2"></i>Dashboard</a></li>
+                        {% if not current_user.is_authenticated or current_user.role != 'instructor' %}
                         <li class="mb-2"><a
                                 href="{{ url_for('customers') if current_user.is_authenticated else '#' }}"><i
                                     class="fas fa-users me-2"></i>Customers</a></li>
+                        {% endif %}
                         <li class="mb-2"><a href="{{ url_for('tickets') if current_user.is_authenticated else '#' }}"><i
                                     class="fas fa-ticket-alt me-2"></i>Support</a></li>
                         <li class="mb-2"><a

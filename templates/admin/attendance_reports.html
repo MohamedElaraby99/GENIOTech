@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}تقارير الحضور{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0 text-gray-800">
+                    <i class="fas fa-chart-bar"></i> تقارير الحضور والإحصائيات
+                </h1>
+            </div>
+
+            <!-- Filters Card -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-filter"></i> فلاتر التقارير
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="GET">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label>من تاريخ:</label>
+                                <input type="date" name="date_from" class="form-control" value="{{ date_from or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label>إلى تاريخ:</label>
+                                <input type="date" name="date_to" class="form-control" value="{{ date_to or '' }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label>المدرس:</label>
+                                <select name="instructor_filter" class="form-control">
+                                    <option value="">جميع المدرسين</option>
+                                    {% for instructor in instructors %}
+                                    <option value="{{ instructor.id }}" {% if instructor_filter==instructor.id|string
+                                        %}selected{% endif %}>
+                                        {{ instructor.first_name }} {{ instructor.last_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label>المجموعة:</label>
+                                <select name="group_filter" class="form-control">
+                                    <option value="">جميع المجموعات</option>
+                                    {% for group in groups %}
+                                    <option value="{{ group.id }}" {% if group_filter==group.id|string %}selected{%
+                                        endif %}>
+                                        {{ group.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> تطبيق الفلاتر
+                                </button>
+                                <a href="{{ url_for('attendance_reports') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> إعادة تعيين
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row">
+                <!-- Individual Sessions Stats -->
+                <div class="col-xl-6 col-md-12 mb-4">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                        الحصص الفردية
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                {{ individual_stats.total_sessions }}
+                                            </div>
+                                            <div class="text-xs text-muted">إجمالي الحصص</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="h5 mb-0 font-weight-bold text-success">
+                                                {{ individual_stats.attendance_rate }}%
+                                            </div>
+                                            <div class="text-xs text-muted">معدل الحضور</div>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-3">
+                                            <small class="text-success">مكتملة: {{ individual_stats.completed }}</small>
+                                        </div>
+                                        <div class="col-3">
+                                            <small class="text-warning">غياب: {{ individual_stats.no_show }}</small>
+                                        </div>
+                                        <div class="col-3">
+                                            <small class="text-danger">ملغية: {{ individual_stats.cancelled }}</small>
+                                        </div>
+                                        <div class="col-3">
+                                            <small class="text-info">مجدولة: {{ individual_stats.scheduled }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-user-clock fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group Sessions Stats -->
+                <div class="col-xl-6 col-md-12 mb-4">
+                    <div class="card border-left-success shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="row no-gutters align-items-center">
+                                <div class="col mr-2">
+                                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                        حصص المجموعات
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                {{ group_stats.total_sessions }}
+                                            </div>
+                                            <div class="text-xs text-muted">إجمالي الحصص</div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="h5 mb-0 font-weight-bold text-success">
+                                                {{ group_attendance_details|length }}
+                                            </div>
+                                            <div class="text-xs text-muted">حصص مكتملة</div>
+                                        </div>
+                                    </div>
+                                    <div class="row mt-2">
+                                        <div class="col-4">
+                                            <small class="text-success">مكتملة: {{ group_stats.completed }}</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-danger">ملغية: {{ group_stats.cancelled }}</small>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-info">مجدولة: {{ group_stats.scheduled }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <i class="fas fa-users fa-2x text-gray-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Individual Sessions Details -->
+            {% if individual_sessions %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-user-clock"></i> تفاصيل الحصص الفردية
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="individualSessionsTable">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ والوقت</th>
+                                    <th>الطالب</th>
+                                    <th>المدرس</th>
+                                    <th>المدة</th>
+                                    <th>الحالة</th>
+                                    <th>الملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for session in individual_sessions %}
+                                <tr>
+                                    <td>{{ session.scheduled_date.strftime('%Y-%m-%d %H:%M') if session.scheduled_date
+                                        else 'غير محدد' }}</td>
+                                    <td>
+                                        <a href="{{ url_for('customer_detail', customer_id=session.customer.id) }}">
+                                            {{ session.customer.first_name }} {{ session.customer.last_name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ session.instructor.first_name }} {{ session.instructor.last_name }}</td>
+                                    <td>{{ session.duration }} دقيقة</td>
+                                    <td>
+                                        {% if session.status == 'completed' %}
+                                        <span class="badge badge-success">مكتملة</span>
+                                        {% elif session.status == 'no_show' %}
+                                        <span class="badge badge-warning">غياب</span>
+                                        {% elif session.status == 'cancelled' %}
+                                        <span class="badge badge-danger">ملغية</span>
+                                        {% else %}
+                                        <span class="badge badge-info">مجدولة</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ session.notes or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Group Sessions Attendance Details -->
+            {% if group_attendance_details %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="fas fa-users"></i> تفاصيل حضور المجموعات
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" id="groupAttendanceTable">
+                            <thead>
+                                <tr>
+                                    <th>المجموعة</th>
+                                    <th>التاريخ</th>
+                                    <th>الوقت</th>
+                                    <th>إجمالي الطلاب</th>
+                                    <th>حضور</th>
+                                    <th>غياب</th>
+                                    <th>تأخير</th>
+                                    <th>معدل الحضور</th>
+                                    <th>الموضوع</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for detail in group_attendance_details %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('group_detail', group_id=detail.session.group.id) }}">
+                                            {{ detail.session.group.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ detail.session.session_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ detail.session.start_time.strftime('%H:%M') }} - {{
+                                        detail.session.end_time.strftime('%H:%M') }}</td>
+                                    <td>{{ detail.total_members }}</td>
+                                    <td><span class="badge badge-success">{{ detail.present_count }}</span></td>
+                                    <td><span class="badge badge-warning">{{ detail.absent_count }}</span></td>
+                                    <td><span class="badge badge-info">{{ detail.late_count }}</span></td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" role="progressbar"
+                                                style="width: {{ detail.attendance_rate }}%"
+                                                aria-valuenow="{{ detail.attendance_rate }}" aria-valuemin="0"
+                                                aria-valuemax="100">
+                                                {{ detail.attendance_rate }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ detail.session.topic or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if not individual_sessions and not group_attendance_details %}
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
+                    <h5>لا توجد بيانات حضور متاحة</h5>
+                    <p class="text-muted">جرب تعديل الفلاتر للحصول على النتائج المطلوبة</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTables
+        if ($('#individualSessionsTable').length) {
+            $('#individualSessionsTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json"
+                },
+                "order": [[0, "desc"]],
+                "pageLength": 25
+            });
+        }
+
+        if ($('#groupAttendanceTable').length) {
+            $('#groupAttendanceTable').DataTable({
+                "language": {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json"
+                },
+                "order": [[1, "desc"]],
+                "pageLength": 25
+            });
+        }
+    });
+</script>
+{% endblock %}
