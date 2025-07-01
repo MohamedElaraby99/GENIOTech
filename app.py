@@ -2,10 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 from functools import wraps
 import os
-import pandas as pd
 import io
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib import colors
@@ -19,6 +18,10 @@ import seaborn as sns
 import base64
 import json
 from dotenv import load_dotenv
+import csv
+import requests
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment
 
 # Load environment variables
 load_dotenv()
@@ -43,6 +46,84 @@ def nl2br(value):
     if value:
         return value.replace('\n', '<br>\n')
     return value
+
+# Helper functions to replace pandas functionality
+def is_empty_value(value):
+    """Check if a value is empty, None, or NaN equivalent"""
+    if value is None:
+        return True
+    if isinstance(value, str) and value.strip() == '':
+        return True
+    if isinstance(value, (int, float)) and str(value).lower() in ['nan', 'null', '']:
+        return True
+    return False
+
+def safe_str(value, default=''):
+    """Safely convert value to string, handling None and empty values"""
+    if is_empty_value(value):
+        return default
+    return str(value).strip()
+
+def create_excel_from_data(data, filename, sheet_name='Sheet1'):
+    """Create Excel file from data using openpyxl"""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+    
+    if data:
+        # Add headers
+        headers = list(data[0].keys())
+        ws.append(headers)
+        
+        # Add data rows
+        for row_data in data:
+            row = [row_data.get(col, '') for col in headers]
+            ws.append(row)
+        
+        # Style headers
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Auto-adjust column widths
+        for column in ws.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            ws.column_dimensions[column_letter].width = adjusted_width
+    
+    return wb
+
+def read_excel_file(file_path):
+    """Read Excel file and return data as list of dictionaries"""
+    wb = load_workbook(file_path)
+    ws = wb.active
+    
+    # Get headers from first row
+    headers = []
+    for cell in ws[1]:
+        headers.append(cell.value.strip() if cell.value else '')
+    
+    # Get data rows
+    data = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        row_dict = {}
+        for i, value in enumerate(row):
+            if i < len(headers):
+                row_dict[headers[i]] = value
+        data.append(row_dict)
+    
+    return data
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -1191,117 +1272,156 @@ def customer_detail(customer_id):
 @login_required
 def download_customer_template():
     """Download Excel template for customer import"""
-    # Create a sample Excel file
-    data = {
-        'first_name': ['محمد', 'فاطمة', 'أحمد'],
-        'last_name': ['أحمد', 'سالم', 'محمود'],
-        'phone': ['+966501234567', '+966507654321', '+966509876543'],
-        'phone2': ['+966501234568', '', '+966509876544'],
-        'age': [25, 30, 22],
-        'status': ['active', 'active', 'needs_follow_up'],
-        'assigned_instructor_email': ['instructor@example.com', '', 'instructor@example.com'],
-        'initial_notes': ['ملاحظات أولية للعميل', 'عميل مهتم بدورات البرمجة', 'يحتاج متابعة خاصة']
-    }
-    
-    df = pd.DataFrame(data)
-    
-    # Create Excel file in memory
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        # Write the template data
-        df.to_excel(writer, sheet_name='Customers Template', index=False)
-        
-        # Get workbook and worksheet for formatting
-        workbook = writer.book
-        worksheet = writer.sheets['Customers Template']
-        
-        # Create header style
-        from openpyxl.styles import Font, PatternFill, Alignment
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-        
-        # Apply header formatting
-        for cell in worksheet[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal="center")
-        
-        # Auto-adjust column widths
-        for column in worksheet.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 50)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
-        
-        # Add instructions sheet
-        instructions_data = {
-            'Column Name': [
-                'first_name',
-                'last_name', 
-                'email',
-                'phone',
-                'status',
-                'assigned_instructor_email',
-                'initial_notes'
-            ],
-            'Required': [
-                'Yes',
-                'Yes',
-                'Yes', 
-                'No',
-                'No',
-                'No',
-                'No'
-            ],
-            'Description': [
-                'الاسم الأول للعميل',
-                'اسم العائلة للعميل',
-                'البريد الإلكتروني (يجب أن يكون فريد)',
-                'رقم الهاتف (مع رمز الدولة)',
-                'حالة العميل: active, inactive, needs_follow_up, no_show',
-                'البريد الإلكتروني للمدرب المسؤول (اختياري)',
-                'ملاحظات أولية عن العميل'
-            ],
-            'Example': [
-                'محمد',
-                'أحمد',
-                'mohammed@example.com',
-                '+966501234567',
-                'active',
-                'instructor@example.com',
-                'عميل مهتم بدورات البرمجة'
-            ]
+    # Create sample data for the template
+    template_data = [
+        {
+            'first_name': 'محمد',
+            'last_name': 'أحمد',
+            'phone': '+966501234567',
+            'phone2': '+966501234568',
+            'age': 25,
+            'status': 'active',
+            'assigned_instructor_email': 'instructor@example.com',
+            'initial_notes': 'ملاحظات أولية للعميل'
+        },
+        {
+            'first_name': 'فاطمة',
+            'last_name': 'سالم',
+            'phone': '+966507654321',
+            'phone2': '',
+            'age': 30,
+            'status': 'active',
+            'assigned_instructor_email': '',
+            'initial_notes': 'عميل مهتم بدورات البرمجة'
+        },
+        {
+            'first_name': 'أحمد',
+            'last_name': 'محمود',
+            'phone': '+966509876543',
+            'phone2': '+966509876544',
+            'age': 22,
+            'status': 'needs_follow_up',
+            'assigned_instructor_email': 'instructor@example.com',
+            'initial_notes': 'يحتاج متابعة خاصة'
         }
-        
-        instructions_df = pd.DataFrame(instructions_data)
-        instructions_df.to_excel(writer, sheet_name='Instructions', index=False)
-        
-        # Format instructions sheet
-        instructions_sheet = writer.sheets['Instructions']
-        for cell in instructions_sheet[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal="center")
-        
-        # Auto-adjust column widths for instructions
-        for column in instructions_sheet.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
-                    pass
-            adjusted_width = min(max_length + 2, 60)
-            instructions_sheet.column_dimensions[column_letter].width = adjusted_width
+    ]
     
+    # Create workbook
+    wb = Workbook()
+    
+    # Create main template sheet
+    ws = wb.active
+    ws.title = 'Customers Template'
+    
+    # Add headers
+    headers = list(template_data[0].keys())
+    ws.append(headers)
+    
+    # Add sample data
+    for row_data in template_data:
+        row = [row_data.get(col, '') for col in headers]
+        ws.append(row)
+    
+    # Style headers
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Auto-adjust column widths
+    for column in ws.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[column_letter].width = adjusted_width
+    
+    # Add instructions sheet
+    instructions_sheet = wb.create_sheet(title='Instructions')
+    instructions_data = [
+        {
+            'Column Name': 'first_name',
+            'Required': 'Yes',
+            'Description': 'الاسم الأول للعميل',
+            'Example': 'محمد'
+        },
+        {
+            'Column Name': 'last_name',
+            'Required': 'Yes',
+            'Description': 'اسم العائلة للعميل',
+            'Example': 'أحمد'
+        },
+        {
+            'Column Name': 'email',
+            'Required': 'Yes',
+            'Description': 'البريد الإلكتروني (يجب أن يكون فريد)',
+            'Example': 'mohammed@example.com'
+        },
+        {
+            'Column Name': 'phone',
+            'Required': 'No',
+            'Description': 'رقم الهاتف (مع رمز الدولة)',
+            'Example': '+966501234567'
+        },
+        {
+            'Column Name': 'status',
+            'Required': 'No',
+            'Description': 'حالة العميل: active, inactive, needs_follow_up, no_show',
+            'Example': 'active'
+        },
+        {
+            'Column Name': 'assigned_instructor_email',
+            'Required': 'No',
+            'Description': 'البريد الإلكتروني للمدرب المسؤول (اختياري)',
+            'Example': 'instructor@example.com'
+        },
+        {
+            'Column Name': 'initial_notes',
+            'Required': 'No',
+            'Description': 'ملاحظات أولية عن العميل',
+            'Example': 'عميل مهتم بدورات البرمجة'
+        }
+    ]
+    
+    # Add instructions headers
+    instructions_headers = list(instructions_data[0].keys())
+    instructions_sheet.append(instructions_headers)
+    
+    # Add instructions data
+    for row_data in instructions_data:
+        row = [row_data.get(col, '') for col in instructions_headers]
+        instructions_sheet.append(row)
+    
+    # Style instructions headers
+    for cell in instructions_sheet[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center")
+    
+    # Auto-adjust column widths for instructions
+    for column in instructions_sheet.columns:
+        max_length = 0
+        column_letter = column[0].column_letter
+        for cell in column:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = min(max_length + 2, 60)
+        instructions_sheet.column_dimensions[column_letter].width = adjusted_width
+    
+    # Save to memory
+    output = io.BytesIO()
+    wb.save(output)
     output.seek(0)
     
     response = make_response(output.getvalue())
@@ -1332,19 +1452,42 @@ def import_customers():
         return redirect(request.url)
     
     try:
-        # Read Excel file
-        df = pd.read_excel(file)
+        # Save uploaded file temporarily
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+            file.save(tmp_file.name)
+            
+            # Read Excel file using helper function
+            data = read_excel_file(tmp_file.name)
+            
+            # Clean up temp file
+            import os
+            os.unlink(tmp_file.name)
         
-        # Debug: Show what columns were found
-        found_columns = list(df.columns)
+        # Get column names from first row (if any data exists)
+        if not data:
+            flash('الملف فارغ أو لا يحتوي على بيانات', 'error')
+            return redirect(request.url)
+            
+        found_columns = list(data[0].keys()) if data else []
         print(f"Found columns in Excel: {found_columns}")
         
         # Clean column names (remove extra spaces, etc.)
-        df.columns = df.columns.str.strip()
+        cleaned_data = []
+        for row in data:
+            cleaned_row = {}
+            for key, value in row.items():
+                clean_key = key.strip() if key else ''
+                cleaned_row[clean_key] = value
+            cleaned_data.append(cleaned_row)
+        data = cleaned_data
+        
+        # Update found_columns after cleaning
+        found_columns = list(data[0].keys()) if data else []
         
         # Validate required columns
         required_columns = ['first_name', 'last_name']
-        missing_columns = [col for col in required_columns if col not in df.columns]
+        missing_columns = [col for col in required_columns if col not in found_columns]
         
         if missing_columns:
             flash(f'الأعمدة التالية مطلوبة ومفقودة: {", ".join(missing_columns)}', 'error')
@@ -1357,16 +1500,16 @@ def import_customers():
         skipped_count = 0
         error_messages = []
         
-        for index, row in df.iterrows():
+        for index, row in enumerate(data):
             try:
                 # Skip empty rows
-                if pd.isna(row['first_name']) or pd.isna(row['last_name']):
+                if is_empty_value(row.get('first_name')) or is_empty_value(row.get('last_name')):
                     skipped_count += 1
                     continue
                 
                 # Find assigned instructor if specified
                 assigned_instructor = None
-                if not pd.isna(row.get('assigned_instructor_email')):
+                if not is_empty_value(row.get('assigned_instructor_email')):
                     assigned_instructor = User.query.filter_by(
                         email=row['assigned_instructor_email'],
                         role='instructor'
@@ -1377,14 +1520,14 @@ def import_customers():
                 # Validate status
                 valid_statuses = ['active', 'inactive', 'needs_follow_up', 'no_show']
                 status = row.get('status', 'active')
-                if pd.isna(status):
+                if is_empty_value(status):
                     status = 'active'
                 if status not in valid_statuses:
                     status = 'active'
                 
                 # Handle age conversion
                 age = None
-                if not pd.isna(row.get('age')):
+                if not is_empty_value(row.get('age')):
                     try:
                         age_value = row.get('age')
                         if isinstance(age_value, (int, float)) and age_value > 0:
@@ -1394,13 +1537,13 @@ def import_customers():
                 
                 # Create customer
                 customer = Customer(
-                    first_name=str(row['first_name']).strip(),
-                    last_name=str(row['last_name']).strip(),
-                    phone=str(row.get('phone', '')).strip() if not pd.isna(row.get('phone')) else '',
-                    phone2=str(row.get('phone2', '')).strip() if not pd.isna(row.get('phone2')) else '',
+                    first_name=safe_str(row['first_name']),
+                    last_name=safe_str(row['last_name']),
+                    phone=safe_str(row.get('phone', '')),
+                    phone2=safe_str(row.get('phone2', '')),
                     age=age,
                     status=status,
-                    initial_notes=str(row.get('initial_notes', '')).strip() if not pd.isna(row.get('initial_notes')) else ''
+                    initial_notes=safe_str(row.get('initial_notes', ''))
                 )
                 
                 db.session.add(customer)
@@ -2356,18 +2499,18 @@ def export_customers_csv():
             'Active Group Memberships': len([m for m in customer.group_memberships if m.status == 'active'])
         })
     
-    # Create DataFrame and convert to CSV
-    df = pd.DataFrame(data)
-    
-    # Create CSV response
+    # Create CSV response using built-in csv module instead of pandas
     output = io.StringIO()
-    df.to_csv(output, index=False)
+    if data:
+        writer = csv.DictWriter(output, fieldnames=data[0].keys())
+        writer.writeheader()
+        writer.writerows(data)
     output.seek(0)
-    
+
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv'
     response.headers['Content-Disposition'] = f'attachment; filename=customers_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
-    
+
     return response
 
 @app.route('/admin/reports/tickets/excel')
@@ -2393,20 +2536,32 @@ def export_tickets_excel():
             'Resolution Notes': ticket.resolution_notes or ''
         })
     
-    # Create DataFrame
-    df = pd.DataFrame(data)
+    # Create Excel file using openpyxl instead of pandas
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Tickets Report'
     
-    # Create Excel file in memory
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, sheet_name='Tickets Report', index=False)
+    if data:
+        # Add headers
+        headers = list(data[0].keys())
+        ws.append(headers)
         
-        # Get the workbook and worksheet
-        workbook = writer.book
-        worksheet = writer.sheets['Tickets Report']
+        # Add data rows
+        for row_data in data:
+            row = [row_data.get(col, '') for col in headers]
+            ws.append(row)
+        
+        # Style headers
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
         
         # Auto-adjust column widths
-        for column in worksheet.columns:
+        for column in ws.columns:
             max_length = 0
             column_letter = column[0].column_letter
             for cell in column:
@@ -2416,14 +2571,17 @@ def export_tickets_excel():
                 except:
                     pass
             adjusted_width = min(max_length + 2, 50)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
+            ws.column_dimensions[column_letter].width = adjusted_width
     
+    # Save to memory
+    output = io.BytesIO()
+    wb.save(output)
     output.seek(0)
-    
+
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response.headers['Content-Disposition'] = f'attachment; filename=tickets_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    
+
     return response
 
 @app.route('/admin/reports/summary/pdf')
