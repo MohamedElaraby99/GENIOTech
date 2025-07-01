@@ -18,11 +18,23 @@ matplotlib.use('Agg')  # Use non-interactive backend
 import seaborn as sns
 import base64
 import json
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///crm.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Import configuration after creating the app
+try:
+    from config import config
+    config_name = os.environ.get('FLASK_ENV', 'development')
+    app.config.from_object(config[config_name])
+except ImportError:
+    # Fallback configuration if config.py doesn't exist
+    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///instance/crm.db')
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Add nl2br filter for templates
 @app.template_filter('nl2br')
@@ -3364,8 +3376,14 @@ def add_communication_record():
     
     return redirect(url_for('customer_detail', customer_id=request.form['customer_id']))
 
-if __name__ == '__main__':
+def create_app():
+    """Application factory pattern for easier testing and deployment"""
+    return app
+
+def init_database():
+    """Initialize database with default data"""
     with app.app_context():
+        # Create tables
         db.create_all()
         
         # Create default admin user if it doesn't exist
@@ -3401,5 +3419,14 @@ if __name__ == '__main__':
                 print(f"Created category: {cat_data['name']}")
         
         db.session.commit()
+
+if __name__ == '__main__':
+    # Only run if called directly (development mode)
+    init_database()
     
-    app.run(debug=True) 
+    # Get configuration from environment
+    host = os.environ.get('HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_ENV', 'development') == 'development'
+    
+    app.run(host=host, port=port, debug=debug) 
