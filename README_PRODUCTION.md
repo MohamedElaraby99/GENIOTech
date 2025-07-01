@@ -55,7 +55,7 @@ sudo ./setup_ssl.sh your-domain.com
 
 ## 🔗 Access Your Application
 
-- **Development:** `http://localhost:5000`
+- **Development:** `http://localhost:8002`
 - **Production:** `http://your-server-ip` or `https://your-domain.com`
 
 ### Default Login

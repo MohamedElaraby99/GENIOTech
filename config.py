@@ -19,6 +19,10 @@ class Config:
     
     # Application settings
     APP_NAME = os.environ.get('APP_NAME') or 'GENIO TECH CRM'
+    
+    # Server configuration
+    HOST = os.environ.get('HOST') or '0.0.0.0'
+    PORT = int(os.environ.get('PORT') or 8002)
 
 class DevelopmentConfig(Config):
     """Development configuration"""

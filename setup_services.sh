@@ -47,7 +47,7 @@ Group=www-data
 WorkingDirectory=$PROJECT_DIR
 Environment="PATH=$VENV_DIR/bin"
 EnvironmentFile=$PROJECT_DIR/.env
-ExecStart=$VENV_DIR/bin/gunicorn --workers 4 --bind 0.0.0.0:8000 wsgi:application
+ExecStart=$VENV_DIR/bin/gunicorn --workers 4 --bind 0.0.0.0:8002 wsgi:application
 Restart=on-failure
 
 [Install]
@@ -62,7 +62,7 @@ server {
     server_name localhost;
 
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8002;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;

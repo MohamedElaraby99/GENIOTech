@@ -212,7 +212,7 @@ psql geniotech_crm < backup_file.sql
 
 ```bash
 # Test application directly
-curl http://localhost:8000
+curl http://localhost:8002
 
 # Test through Nginx
 curl http://localhost
@@ -228,7 +228,7 @@ sudo systemctl status geniotech-crm nginx postgresql
 1. **Increase Gunicorn workers** (in `/etc/systemd/system/geniotech-crm.service`):
 
    ```
-   ExecStart=/var/www/geniotech-crm/venv/bin/gunicorn --workers 8 --bind 0.0.0.0:8000 wsgi:application
+   ExecStart=/var/www/geniotech-crm/venv/bin/gunicorn --workers 8 --bind 0.0.0.0:8002 wsgi:application
    ```
 
 2. **Configure PostgreSQL** for better performance:

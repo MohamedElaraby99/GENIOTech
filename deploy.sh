@@ -88,7 +88,7 @@ DATABASE_URL=postgresql://geniotech_user:$(openssl rand -base64 32 | tr -d "=+/"
 # Application Settings
 APP_NAME=GENIO TECH CRM
 HOST=0.0.0.0
-PORT=8000
+PORT=8002
 WORKERS=4
 
 # Security Settings
