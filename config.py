@@ -14,8 +14,8 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
-    # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///instance/crm.db'
+    # Database configuration - SQLite for production simplicity
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.abspath("instance/crm.db")}'
     
     # Application settings
     APP_NAME = os.environ.get('APP_NAME') or 'GENIO TECH CRM'
@@ -38,11 +38,8 @@ class ProductionConfig(Config):
     # Force HTTPS in production
     PREFERRED_URL_SCHEME = 'https'
     
-    # Database configuration for production
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    
-    if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("DATABASE_URL environment variable must be set in production")
+    # Database configuration for production - SQLite for simplicity
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.abspath("instance/crm.db")}'
 
 class TestingConfig(Config):
     """Testing configuration"""

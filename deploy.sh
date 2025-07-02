@@ -43,7 +43,7 @@ sudo apt update && sudo apt upgrade -y
 
 # Install required system packages
 print_status "Installing system dependencies..."
-sudo apt install -y python3 python3-pip python3-venv nginx postgresql postgresql-contrib supervisor git curl
+sudo apt install -y python3 python3-pip python3-venv nginx supervisor git curl
 
 # Create project directory
 print_status "Creating project directory..."
@@ -83,7 +83,7 @@ FLASK_ENV=production
 SECRET_KEY=$(openssl rand -hex 32)
 
 # Database Configuration
-DATABASE_URL=postgresql://geniotech_user:$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)@localhost/geniotech_crm
+DATABASE_URL=sqlite:///instance/crm.db
 
 # Application Settings
 APP_NAME=GENIO TECH CRM
