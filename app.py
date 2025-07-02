@@ -3540,47 +3540,75 @@ def create_app():
 
 def init_database():
     """Initialize database with default data"""
-    # Ensure instance directory exists
-    instance_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
-    os.makedirs(instance_dir, exist_ok=True)
-    
-    with app.app_context():
-        # Create tables
-        db.create_all()
+    try:
+        # Ensure the directory containing the database file exists
+        config_instance = app.config
+        db_url = config_instance.get('SQLALCHEMY_DATABASE_URI', '')
         
-        # Create default admin user if it doesn't exist
-        admin = User.query.filter_by(username='admin').first()
-        if not admin:
-            admin = User(
-                username='admin',
-                email='admin@example.com',
-                password_hash=generate_password_hash('admin123'),
-                role='admin',
-                first_name='System',
-                last_name='Administrator'
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("Default admin user created: username='admin', password='admin123'")
+        if db_url.startswith('sqlite:///'):
+            # Extract the database file path from the URL
+            db_file_path = db_url.replace('sqlite:///', '')
+            if not os.path.isabs(db_file_path):
+                db_file_path = os.path.abspath(db_file_path)
+            
+            # Ensure the directory exists
+            db_dir = os.path.dirname(db_file_path)
+            os.makedirs(db_dir, exist_ok=True)
+            
+            # Set appropriate permissions on Unix-like systems
+            if hasattr(os, 'chmod') and os.path.exists(db_dir):
+                try:
+                    os.chmod(db_dir, 0o755)
+                except (OSError, PermissionError):
+                    pass  # Ignore permission errors
+            
+            print(f"Database will be created at: {db_file_path}")
         
-        # Create default categories if they don't exist
-        default_categories = [
-            {'name': 'Competitions', 'description': 'Programming competitions and contests'},
-            {'name': 'Camps', 'description': 'Intensive training camps and bootcamps'},
-            {'name': 'Courses', 'description': 'Regular educational courses and classes'}
-        ]
-        
-        for cat_data in default_categories:
-            existing_category = CourseCategory.query.filter_by(name=cat_data['name']).first()
-            if not existing_category:
-                category = CourseCategory(
-                    name=cat_data['name'],
-                    description=cat_data['description']
+        with app.app_context():
+            # Create tables
+            print("Creating database tables...")
+            db.create_all()
+            print("Database tables created successfully!")
+            
+            # Create default admin user if it doesn't exist
+            admin = User.query.filter_by(username='admin').first()
+            if not admin:
+                admin = User(
+                    username='admin',
+                    email='admin@example.com',
+                    password_hash=generate_password_hash('admin123'),
+                    role='admin',
+                    first_name='System',
+                    last_name='Administrator'
                 )
-                db.session.add(category)
-                print(f"Created category: {cat_data['name']}")
-        
-        db.session.commit()
+                db.session.add(admin)
+                db.session.commit()
+                print("Default admin user created: username='admin', password='admin123'")
+            
+            # Create default categories if they don't exist
+            default_categories = [
+                {'name': 'Competitions', 'description': 'Programming competitions and contests'},
+                {'name': 'Camps', 'description': 'Intensive training camps and bootcamps'},
+                {'name': 'Courses', 'description': 'Regular educational courses and classes'}
+            ]
+            
+            for cat_data in default_categories:
+                existing_category = CourseCategory.query.filter_by(name=cat_data['name']).first()
+                if not existing_category:
+                    category = CourseCategory(
+                        name=cat_data['name'],
+                        description=cat_data['description']
+                    )
+                    db.session.add(category)
+                    print(f"Created category: {cat_data['name']}")
+            
+            db.session.commit()
+            print("Database initialization completed successfully!")
+            
+    except Exception as e:
+        print(f"Error initializing database: {str(e)}")
+        print(f"Database URL: {app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')}")
+        raise
 
 if __name__ == '__main__':
     init_database()

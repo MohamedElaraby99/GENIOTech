@@ -1,6 +1,16 @@
 import os
 from datetime import timedelta
 
+def get_database_path():
+    """Get the absolute path for the SQLite database"""
+    if os.environ.get('DATABASE_URL'):
+        return os.environ.get('DATABASE_URL')
+    
+    # Use absolute path to avoid permission issues
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    db_path = os.path.join(base_dir, 'crm.db')
+    return f'sqlite:///{db_path}'
+
 class Config:
     """Base configuration class"""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
@@ -14,8 +24,8 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     
-    # Database configuration - SQLite in main directory
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///crm.db'
+    # Database configuration - SQLite with absolute path
+    SQLALCHEMY_DATABASE_URI = get_database_path()
     
     # Application settings
     APP_NAME = os.environ.get('APP_NAME') or 'GENIO TECH CRM'
@@ -27,7 +37,6 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///crm.db'
     SESSION_COOKIE_SECURE = False
 
 class ProductionConfig(Config):
@@ -37,9 +46,6 @@ class ProductionConfig(Config):
     
     # Force HTTPS in production
     PREFERRED_URL_SCHEME = 'https'
-    
-    # Database configuration for production - SQLite in main directory
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///crm.db'
 
 class TestingConfig(Config):
     """Testing configuration"""
