@@ -15,7 +15,8 @@ class Config:
     SESSION_COOKIE_SAMESITE = 'Lax'
     
     # Database configuration - SQLite for production simplicity
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.abspath("instance/crm.db")}'
+    _base_dir = os.path.abspath(os.path.dirname(__file__))
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.join(_base_dir, "instance", "crm.db")}'
     
     # Application settings
     APP_NAME = os.environ.get('APP_NAME') or 'GENIO TECH CRM'
@@ -27,7 +28,8 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration"""
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///instance/crm.db'
+    _base_dir = os.path.abspath(os.path.dirname(__file__))
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.join(_base_dir, "instance", "crm.db")}'
     SESSION_COOKIE_SECURE = False
 
 class ProductionConfig(Config):
@@ -38,8 +40,9 @@ class ProductionConfig(Config):
     # Force HTTPS in production
     PREFERRED_URL_SCHEME = 'https'
     
-    # Database configuration for production - SQLite for simplicity
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.abspath("instance/crm.db")}'
+    # Database configuration for production - SQLite for simplicity  
+    _base_dir = os.path.abspath(os.path.dirname(__file__))
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or f'sqlite:///{os.path.join(_base_dir, "instance", "crm.db")}'
 
 class TestingConfig(Config):
     """Testing configuration"""
