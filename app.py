@@ -3540,6 +3540,10 @@ def create_app():
 
 def init_database():
     """Initialize database with default data"""
+    # Ensure instance directory exists
+    instance_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+    os.makedirs(instance_dir, exist_ok=True)
+    
     with app.app_context():
         # Create tables
         db.create_all()
