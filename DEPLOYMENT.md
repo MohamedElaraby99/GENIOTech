@@ -52,8 +52,8 @@ Update these important settings:
 # Change the secret key for security
 SECRET_KEY=your-super-secret-key-here
 
-# Update database URL if using PostgreSQL
-DATABASE_URL=postgresql://geniotech_user:your_password@localhost/geniotech_crm
+# SQLite database (default and only supported)
+DATABASE_URL=sqlite:///instance/crm.db
 
 # Set your domain (if applicable)
 SERVER_NAME=your-domain.com
@@ -145,13 +145,12 @@ sudo systemctl restart nginx
 
 ```bash
 cd /var/www/geniotech-crm
-source venv/bin/activate
 
 # Create database backup
-pg_dump geniotech_crm > backup_$(date +%Y%m%d_%H%M%S).sql
+cp instance/crm.db backups/crm_backup_$(date +%Y%m%d_%H%M%S).db
 
 # Restore from backup
-psql geniotech_crm < backup_file.sql
+cp backup_file.db instance/crm.db
 ```
 
 ## 🔐 Security Checklist
@@ -188,11 +187,11 @@ psql geniotech_crm < backup_file.sql
 2. **Database connection errors**
 
    ```bash
-   # Check PostgreSQL status
-   sudo systemctl status postgresql
+   # Check SQLite database file
+   ls -la /var/www/geniotech-crm/instance/
 
-   # Check database exists
-   sudo -u postgres psql -l
+   # Check database permissions
+   sudo chown -R www-data:www-data /var/www/geniotech-crm/instance/
    ```
 
 3. **Nginx errors**
@@ -218,7 +217,7 @@ curl http://localhost:8002
 curl http://localhost
 
 # Check all services
-sudo systemctl status geniotech-crm nginx postgresql
+sudo systemctl status geniotech-crm nginx
 ```
 
 ## 📈 Performance Optimization
@@ -231,15 +230,16 @@ sudo systemctl status geniotech-crm nginx postgresql
    ExecStart=/var/www/geniotech-crm/venv/bin/gunicorn --workers 8 --bind 0.0.0.0:8002 wsgi:application
    ```
 
-2. **Configure PostgreSQL** for better performance:
+2. **Setup Redis** for session storage (optional):
 
-   ```bash
-   sudo nano /etc/postgresql/*/main/postgresql.conf
-   ```
-
-3. **Setup Redis** for session storage (optional):
    ```bash
    sudo apt install redis-server
+   ```
+
+3. **Optimize SQLite** for better performance:
+   ```bash
+   # Ensure proper file permissions
+   sudo chown -R www-data:www-data /var/www/geniotech-crm/instance/
    ```
 
 ## 🔄 Updates and Maintenance
@@ -265,15 +265,8 @@ Create `/home/backup_db.sh`:
 ```bash
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
-pg_dump geniotech_crm > /home/backups/geniotech_crm_$DATE.sql
-find /home/backups -name "geniotech_crm_*.sql" -mtime +7 -delete
-```
-
-Add to crontab:
-
-```bash
-crontab -e
-# Add: 0 2 * * * /home/backup_db.sh
+cp /var/www/geniotech-crm/instance/crm.db /home/backups/crm_backup_$DATE.db
+find /home/backups -name "crm_backup_*.db" -mtime +7 -delete
 ```
 
 ## 📞 Support

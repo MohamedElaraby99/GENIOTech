@@ -1,25 +1,25 @@
 # 🗄️ SQLite Database Setup
 
-The GENIO TECH CRM has been configured to use **SQLite** as the default database for simplified deployment.
+The GENIO TECH CRM has been configured to use **SQLite** as the database for simplified deployment.
 
 ## ✅ Changes Made
 
 ### 1. Database Configuration
 
-- **Default database**: SQLite (`instance/crm.db`)
-- **Removed dependencies**: PostgreSQL (`psycopg2-binary`) and MySQL (`pymysql`) drivers
-- **Updated config**: Both development and production configs now use SQLite by default
+- **Database**: SQLite (`instance/crm.db`)
+- **Removed dependencies**: PostgreSQL and MySQL drivers completely removed
+- **Updated config**: Both development and production configs use SQLite only
 
 ### 2. Deployment Simplification
 
 - **No database server required**: SQLite is file-based
-- **Reduced system dependencies**: Removed PostgreSQL installation from deployment scripts
+- **Reduced system dependencies**: No database server installation needed
 - **Easier backup**: Single database file to backup
 
 ### 3. Environment Configuration
 
-- **Default `.env`**: Uses SQLite by default
-- **Optional upgrades**: PostgreSQL/MySQL can still be used by changing `DATABASE_URL`
+- **Default `.env`**: Uses SQLite only
+- **No alternatives**: System designed specifically for SQLite
 
 ## 🚀 Benefits
 
@@ -34,29 +34,6 @@ The GENIO TECH CRM has been configured to use **SQLite** as the default database
 ```
 /var/www/geniotech-crm/instance/crm.db
 ```
-
-## 🔄 Migration to Other Databases
-
-If you need PostgreSQL or MySQL later, simply:
-
-1. Install the required driver:
-
-   ```bash
-   pip install psycopg2-binary  # For PostgreSQL
-   # or
-   pip install pymysql          # For MySQL
-   ```
-
-2. Update your `.env` file:
-
-   ```env
-   DATABASE_URL=postgresql://user:password@localhost/dbname
-   ```
-
-3. Run the migration:
-   ```bash
-   python wsgi.py
-   ```
 
 ## 💾 Backup Recommendations
 
@@ -77,4 +54,4 @@ cp instance/crm.db backups/crm_backup_$(date +%Y%m%d).db
 
 ---
 
-**SQLite is perfect for small to medium-sized deployments with up to thousands of users. For larger scale applications, consider PostgreSQL.**
+**SQLite is perfect for small to medium-sized deployments with thousands of users and provides excellent performance for most CRM applications.**

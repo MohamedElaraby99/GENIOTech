@@ -14,8 +14,6 @@ Your GENIO TECH CRM system is now ready for VPS deployment!
 
 - ✅ `gunicorn` - Production WSGI server
 - ✅ `python-dotenv` - Environment variable management
-- ✅ `psycopg2-binary` - PostgreSQL support
-- ✅ `pymysql` - MySQL support
 
 ### 3. **WSGI Entry Point**
 
@@ -163,7 +161,7 @@ The deployment includes:
 
 1. Check `DEPLOYMENT.md` for detailed instructions
 2. Review application logs: `sudo journalctl -u geniotech-crm -f`
-3. Test services: `sudo systemctl status geniotech-crm nginx postgresql`
+3. Test services: `sudo systemctl status geniotech-crm nginx`
 
 ---
 

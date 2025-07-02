@@ -25,14 +25,10 @@ fi
 
 print_status "Setting up services for GENIO TECH CRM..."
 
-# Setup PostgreSQL Database
-print_status "Configuring PostgreSQL database..."
-systemctl start postgresql
-systemctl enable postgresql
+# SQLite database setup (no additional services needed)
+print_status "SQLite database will be created automatically..."
 
-# Create database and user
-sudo -u postgres createdb geniotech_crm
-sudo -u postgres createuser geniotech_user
+# SQLite database will be created automatically when the app runs
 
 # Create systemd service
 print_status "Creating systemd service..."
