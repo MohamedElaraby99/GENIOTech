@@ -28,6 +28,10 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Enable debug mode and template auto-reloading
+app.config['DEBUG'] = True
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+
 # Import configuration after creating the app
 try:
     from config import config
