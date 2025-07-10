@@ -3017,12 +3017,34 @@ def group_detail(group_id):
     }
     
     group_stats['completion_rate'] = (group_stats['completed_sessions'] / group_stats['total_sessions'] * 100) if group_stats['total_sessions'] > 0 else 0
+
+    # Calculate monthly progress data
+    monthly_progress = {}
+    if sessions:
+        # Get the first and last session dates
+        first_session = min(sessions, key=lambda x: x.session_date)
+        last_session = max(sessions, key=lambda x: x.session_date)
+        
+        # Create a list of all months between first and last session
+        current_date = first_session.session_date.replace(day=1)
+        end_date = last_session.session_date.replace(day=1)
+        
+        while current_date <= end_date:
+            month_key = current_date.strftime('%Y-%m')
+            monthly_progress[month_key] = 0
+            current_date = (current_date + timedelta(days=32)).replace(day=1)
+        
+        # Count sessions per month
+        for session in sessions:
+            month_key = session.session_date.strftime('%Y-%m')
+            monthly_progress[month_key] = monthly_progress.get(month_key, 0) + 1
     
     return render_template('group_detail.html', 
                          group=group,
                          member_performance=member_performance,
                          available_customers=available_customers,
                          group_stats=group_stats,
+                         monthly_progress=monthly_progress,
                          current_date=datetime.now())
 
 @app.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
