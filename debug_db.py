@@ -8,6 +8,7 @@ from pathlib import Path
 
 from app import db, User, Customer, Course, Ticket, Session, Note, CourseCategory, Group, GroupSchedule
 from app import GroupMember, GroupSession, GroupAttendance, AuditLog, CustomerHistory, GroupHistory, Performance, Communication
+from app import app  # Import the Flask app
 
 print("🔍 Debug: SQLite Database Setup")
 print("="*50)
@@ -151,6 +152,7 @@ if __name__ == '__main__':
     # Ask for confirmation
     response = input("WARNING: This will delete all data from the database. Are you sure? (yes/no): ")
     if response.lower() == 'yes':
-        clear_database()
+        with app.app_context():  # Run within Flask application context
+            clear_database()
     else:
         print("Operation cancelled.") 
