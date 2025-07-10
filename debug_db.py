@@ -8,8 +8,6 @@ from pathlib import Path
 
 from app import db, User, Customer, Course, Ticket, Session, Note, CourseCategory, Group, GroupSchedule
 from app import GroupMember, GroupSession, GroupAttendance, AuditLog, CustomerHistory, GroupHistory, Performance, Communication
-from app import app  # Import the Flask app
-from sqlalchemy.exc import IntegrityError
 
 print("🔍 Debug: SQLite Database Setup")
 print("="*50)
@@ -82,105 +80,58 @@ try:
 except Exception as e:
     print(f"❌ Config error: {e}") 
 
-def delete_group_data(group_id):
-    """Delete all data associated with a specific group."""
-    try:
-        # Delete GroupHistory records
-        GroupHistory.query.filter_by(group_id=group_id).delete()
-        
-        # Delete GroupAttendance records for this group's sessions
-        attendance_ids = db.session.query(GroupAttendance.id).join(GroupSession).filter(GroupSession.group_id == group_id)
-        GroupAttendance.query.filter(GroupAttendance.id.in_(attendance_ids)).delete(synchronize_session='fetch')
-        
-        # Delete GroupSession records
-        GroupSession.query.filter_by(group_id=group_id).delete()
-        
-        # Delete GroupMember records
-        GroupMember.query.filter_by(group_id=group_id).delete()
-        
-        # Delete GroupSchedule records
-        GroupSchedule.query.filter_by(group_id=group_id).delete()
-        
-        db.session.commit()
-        return True
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error deleting data for group {group_id}: {str(e)}")
-        return False
-
-def delete_customer_data(customer_id):
-    """Delete all data associated with a specific customer."""
-    try:
-        # Delete Performance records
-        Performance.query.filter_by(customer_id=customer_id).delete()
-        
-        # Delete Communication records
-        Communication.query.filter_by(customer_id=customer_id).delete()
-        
-        # Delete CustomerHistory records
-        CustomerHistory.query.filter_by(customer_id=customer_id).delete()
-        
-        # Delete GroupAttendance records
-        GroupAttendance.query.join(GroupSession).join(GroupMember).filter(GroupMember.customer_id == customer_id).delete(synchronize_session='fetch')
-        
-        # Delete GroupMember records
-        GroupMember.query.filter_by(customer_id=customer_id).delete()
-        
-        # Delete Notes
-        Note.query.filter_by(customer_id=customer_id).delete()
-        
-        # Delete Sessions
-        Session.query.filter_by(customer_id=customer_id).delete()
-        
-        # Delete Tickets
-        Ticket.query.filter_by(customer_id=customer_id).delete()
-        
-        db.session.commit()
-        return True
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error deleting data for customer {customer_id}: {str(e)}")
-        return False
-
 def clear_database():
     """Clear all data from the database while respecting foreign key constraints."""
     print("Starting database cleanup...")
     
     try:
-        # First, get all customer IDs
-        customer_ids = [c.id for c in Customer.query.all()]
+        # Delete data in reverse order of dependencies
+        print("Deleting Communication records...")
+        Communication.query.delete()
         
-        # Delete data for each customer
-        for customer_id in customer_ids:
-            print(f"Cleaning up data for customer ID {customer_id}...")
-            if not delete_customer_data(customer_id):
-                print(f"Skipping customer {customer_id} due to errors...")
-                continue
+        print("Deleting Performance records...")
+        Performance.query.delete()
         
-        # Get all group IDs
-        group_ids = [g.id for g in Group.query.all()]
+        print("Deleting GroupHistory records...")
+        GroupHistory.query.delete()
         
-        # Delete data for each group
-        for group_id in group_ids:
-            print(f"Cleaning up data for group ID {group_id}...")
-            if not delete_group_data(group_id):
-                print(f"Skipping group {group_id} due to errors...")
-                continue
+        print("Deleting CustomerHistory records...")
+        CustomerHistory.query.delete()
         
-        # Now delete remaining records
         print("Deleting AuditLog records...")
         AuditLog.query.delete()
         
-        print("Deleting remaining Group records...")
+        print("Deleting GroupAttendance records...")
+        GroupAttendance.query.delete()
+        
+        print("Deleting GroupSession records...")
+        GroupSession.query.delete()
+        
+        print("Deleting GroupMember records...")
+        GroupMember.query.delete()
+        
+        print("Deleting GroupSchedule records...")
+        GroupSchedule.query.delete()
+        
+        print("Deleting Group records...")
         Group.query.delete()
         
         print("Deleting CourseCategory records...")
         CourseCategory.query.delete()
         
+        print("Deleting Note records...")
+        Note.query.delete()
+        
+        print("Deleting Session records...")
+        Session.query.delete()
+        
+        print("Deleting Ticket records...")
+        Ticket.query.delete()
+        
         print("Deleting Course records...")
         Course.query.delete()
         
-        print("Deleting remaining Customer records...")
+        print("Deleting Customer records...")
         Customer.query.delete()
         
         # Keep one admin user for system access
@@ -200,7 +151,6 @@ if __name__ == '__main__':
     # Ask for confirmation
     response = input("WARNING: This will delete all data from the database. Are you sure? (yes/no): ")
     if response.lower() == 'yes':
-        with app.app_context():  # Run within Flask application context
-            clear_database()
+        clear_database()
     else:
         print("Operation cancelled.") 

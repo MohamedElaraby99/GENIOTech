@@ -2974,7 +2974,7 @@ def group_detail(group_id):
     for member, customer in active_members:
         # Get attendance records
         attendance_records = db.session.query(GroupAttendance).join(GroupSession).filter(
-        GroupSession.group_id == group_id,
+            GroupSession.group_id == group_id,
             GroupAttendance.customer_id == customer.id
         ).all()
         
@@ -3040,7 +3040,7 @@ def group_detail(group_id):
             monthly_progress[month_key] = monthly_progress.get(month_key, 0) + 1
     
     return render_template('group_detail.html', 
-                         group=group, 
+                         group=group,
                          member_performance=member_performance,
                          available_customers=available_customers,
                          group_stats=group_stats,
@@ -3106,7 +3106,7 @@ def add_group_member(group_id):
     if current_user.role == 'instructor' and group.instructor_id != current_user.id:
         flash('Access denied. You can only manage your own groups.', 'error')
         return redirect(url_for('group_detail', group_id=group_id))
-        
+    
     customer_id = request.form['customer_id']
     
     # Check if already a member

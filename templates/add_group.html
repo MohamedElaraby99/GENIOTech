@@ -17,73 +17,73 @@
                         <!-- Basic Info Section -->
                         <div class="section mb-4">
                             <h5 class="mb-3"><i class="fas fa-info-circle"></i> Basic Information</h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">Group Name *</label>
-                                    <input type="text" class="form-control" id="name" name="name" required>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Group Name *</label>
+                                        <input type="text" class="form-control" id="name" name="name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="subject" class="form-label">Subject *</label>
+                                        <input type="text" class="form-control" id="subject" name="subject" required>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="subject" class="form-label">Subject *</label>
-                                    <input type="text" class="form-control" id="subject" name="subject" required>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="instructor_id" class="form-label">Instructor *</label>
-                                    <select class="form-select" id="instructor_id" name="instructor_id" required>
-                                        <option value="">Select Instructor</option>
-                                        {% for instructor in instructors %}
-                                        <option value="{{ instructor.id }}">{{ instructor.first_name }} {{
-                                            instructor.last_name }}</option>
-                                        {% endfor %}
-                                    </select>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="instructor_id" class="form-label">Instructor *</label>
+                                        <select class="form-select" id="instructor_id" name="instructor_id" required>
+                                            <option value="">Select Instructor</option>
+                                            {% for instructor in instructors %}
+                                            <option value="{{ instructor.id }}">{{ instructor.first_name }} {{
+                                                instructor.last_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="category_id" class="form-label">Category</label>
+                                        <select class="form-select" id="category_id" name="category_id">
+                                            <option value="">Select Category</option>
+                                            {% for category in categories %}
+                                            <option value="{{ category.id }}">{{ category.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="category_id" class="form-label">Category</label>
-                                    <select class="form-select" id="category_id" name="category_id">
-                                        <option value="">Select Category</option>
-                                        {% for category in categories %}
-                                        <option value="{{ category.id }}">{{ category.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="max_students" class="form-label">Max Students</label>
-                                    <input type="number" class="form-control" id="max_students" name="max_students"
-                                        value="15" min="1" max="50">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="max_students" class="form-label">Max Students</label>
+                                        <input type="number" class="form-control" id="max_students" name="max_students"
+                                            value="15" min="1" max="50">
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="start_date" class="form-label">Start Date *</label>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="start_date" class="form-label">Start Date *</label>
                                         <input type="date" class="form-control" id="start_date" name="start_date"
                                             required>
                                     </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="end_date" class="form-label">End Date</label>
-                                    <input type="date" class="form-control" id="end_date" name="end_date">
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="end_date" class="form-label">End Date</label>
+                                        <input type="date" class="form-control" id="end_date" name="end_date">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                             </div>
                         </div>
 
@@ -340,8 +340,8 @@
                             </button>
                         </div>
                     </div>
-                    </div>
-                    
+                </div>
+
                 <div class="time-error text-danger mt-2" style="display: none;">
                     <i class="fas fa-exclamation-circle"></i> End time must be after start time
                 </div>
