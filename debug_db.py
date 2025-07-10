@@ -6,6 +6,9 @@ import os
 import sqlite3
 from pathlib import Path
 
+from app import db, User, Customer, Course, Ticket, Session, Note, CourseCategory, Group, GroupSchedule
+from app import GroupMember, GroupSession, GroupAttendance, AuditLog, CustomerHistory, GroupHistory, Performance, Communication
+
 print("🔍 Debug: SQLite Database Setup")
 print("="*50)
 
@@ -76,3 +79,78 @@ try:
     print(f"App config DB URI: {app_config.SQLALCHEMY_DATABASE_URI}")
 except Exception as e:
     print(f"❌ Config error: {e}") 
+
+def clear_database():
+    """Clear all data from the database while respecting foreign key constraints."""
+    print("Starting database cleanup...")
+    
+    try:
+        # Delete data in reverse order of dependencies
+        print("Deleting Communication records...")
+        Communication.query.delete()
+        
+        print("Deleting Performance records...")
+        Performance.query.delete()
+        
+        print("Deleting GroupHistory records...")
+        GroupHistory.query.delete()
+        
+        print("Deleting CustomerHistory records...")
+        CustomerHistory.query.delete()
+        
+        print("Deleting AuditLog records...")
+        AuditLog.query.delete()
+        
+        print("Deleting GroupAttendance records...")
+        GroupAttendance.query.delete()
+        
+        print("Deleting GroupSession records...")
+        GroupSession.query.delete()
+        
+        print("Deleting GroupMember records...")
+        GroupMember.query.delete()
+        
+        print("Deleting GroupSchedule records...")
+        GroupSchedule.query.delete()
+        
+        print("Deleting Group records...")
+        Group.query.delete()
+        
+        print("Deleting CourseCategory records...")
+        CourseCategory.query.delete()
+        
+        print("Deleting Note records...")
+        Note.query.delete()
+        
+        print("Deleting Session records...")
+        Session.query.delete()
+        
+        print("Deleting Ticket records...")
+        Ticket.query.delete()
+        
+        print("Deleting Course records...")
+        Course.query.delete()
+        
+        print("Deleting Customer records...")
+        Customer.query.delete()
+        
+        # Keep one admin user for system access
+        print("Removing all users except admin...")
+        User.query.filter(User.username != 'admin').delete()
+        
+        # Commit the changes
+        db.session.commit()
+        print("Database cleared successfully!")
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error clearing database: {str(e)}")
+        raise
+
+if __name__ == '__main__':
+    # Ask for confirmation
+    response = input("WARNING: This will delete all data from the database. Are you sure? (yes/no): ")
+    if response.lower() == 'yes':
+        clear_database()
+    else:
+        print("Operation cancelled.") 
