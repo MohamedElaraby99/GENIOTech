@@ -258,11 +258,11 @@
                                     <td><span class="badge badge-warning">{{ detail.absent_count }}</span></td>
                                     <td><span class="badge badge-info">{{ detail.late_count }}</span></td>
                                     <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar bg-success" role="progressbar"
-                                                style="width: {{ detail.attendance_rate }}%"
-                                                aria-valuenow="{{ detail.attendance_rate }}" aria-valuemin="0"
-                                                aria-valuemax="100">
+                                        <div class="progress attendance-progress">
+                                            <div class="progress-bar bg-success attendance-progress-bar"
+                                                role="progressbar" {% set width=detail.attendance_rate|string + '%' %}
+                                                style="width: {{ width }}" aria-valuenow="{{ detail.attendance_rate }}"
+                                                aria-valuemin="0" aria-valuemax="100">
                                                 {{ detail.attendance_rate }}%
                                             </div>
                                         </div>

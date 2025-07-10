@@ -7,227 +7,128 @@
     <div class="row">
         <div class="col-lg-8 mx-auto">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header bg-primary text-white">
                     <h4 class="mb-0">
                         <i class="fas fa-users"></i> Add New Group
                     </h4>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">Group Name *</label>
-                                    <input type="text" class="form-control" id="name" name="name" required>
+                    <form method="POST" id="addGroupForm">
+                        <!-- Basic Info Section -->
+                        <div class="section mb-4">
+                            <h5 class="mb-3"><i class="fas fa-info-circle"></i> Basic Information</h5>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label">Group Name *</label>
+                                        <input type="text" class="form-control" id="name" name="name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="subject" class="form-label">Subject *</label>
+                                        <input type="text" class="form-control" id="subject" name="subject" required>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="subject" class="form-label">Subject *</label>
-                                    <input type="text" class="form-control" id="subject" name="subject" required>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="instructor_id" class="form-label">Instructor *</label>
+                                        <select class="form-select" id="instructor_id" name="instructor_id" required>
+                                            <option value="">Select Instructor</option>
+                                            {% for instructor in instructors %}
+                                            <option value="{{ instructor.id }}">{{ instructor.first_name }} {{
+                                                instructor.last_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="category_id" class="form-label">Category</label>
+                                        <select class="form-select" id="category_id" name="category_id">
+                                            <option value="">Select Category</option>
+                                            {% for category in categories %}
+                                            <option value="{{ category.id }}">{{ category.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="max_students" class="form-label">Max Students</label>
+                                        <input type="number" class="form-control" id="max_students" name="max_students"
+                                            value="15" min="1" max="50">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="start_date" class="form-label">Start Date *</label>
+                                        <input type="date" class="form-control" id="start_date" name="start_date"
+                                            required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="end_date" class="form-label">End Date</label>
+                                        <input type="date" class="form-control" id="end_date" name="end_date">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="instructor_id" class="form-label">Instructor *</label>
-                                    <select class="form-select" id="instructor_id" name="instructor_id" required>
-                                        <option value="">Select Instructor</option>
-                                        {% for instructor in instructors %}
-                                        <option value="{{ instructor.id }}">{{ instructor.first_name }} {{
-                                            instructor.last_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="category_id" class="form-label">Category</label>
-                                    <select class="form-select" id="category_id" name="category_id">
-                                        <option value="">Select Category</option>
-                                        {% for category in categories %}
-                                        <option value="{{ category.id }}">{{ category.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="max_students" class="form-label">Max Students</label>
-                                    <input type="number" class="form-control" id="max_students" name="max_students"
-                                        value="15" min="1" max="50">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="start_date" class="form-label">Start Date *</label>
-                                    <input type="date" class="form-control" id="start_date" name="start_date" required>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="end_date" class="form-label">End Date</label>
-                                    <input type="date" class="form-control" id="end_date" name="end_date">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="description" class="form-label">Description</label>
-                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
-                        </div>
-
-                        <div class="mb-4">
-                            <label class="form-label mb-3">
+                        <!-- Schedule Section -->
+                        <div class="section mb-4">
+                            <h5 class="mb-3">
                                 <i class="fas fa-calendar-week"></i> Class Schedule *
-                            </label>
+                                <small class="text-muted">(Set when this class meets)</small>
+                            </h5>
 
                             <!-- Quick Schedule Presets -->
-                            <div class="mb-3">
-                                <label class="form-label">
+                            <div class="mb-4">
+                                <label class="form-label mb-2">
                                     <i class="fas fa-magic"></i> Quick Schedule Templates
                                 </label>
-                                <div class="d-flex flex-wrap gap-2 mb-2">
-                                    <button type="button" class="btn btn-outline-info btn-sm quick-schedule-btn"
+                                <div class="d-flex flex-wrap gap-2">
+                                    <button type="button" class="btn btn-outline-primary quick-schedule-btn"
                                         data-schedule='[{"day":"monday","start":"09:00","end":"10:30"},{"day":"wednesday","start":"09:00","end":"10:30"},{"day":"friday","start":"09:00","end":"10:30"}]'>
-                                        MWF Morning (9:00 AM - 10:30 AM)
+                                        <i class="fas fa-calendar-day"></i> MWF Morning
                                     </button>
-                                    <button type="button" class="btn btn-outline-info btn-sm quick-schedule-btn"
+                                    <button type="button" class="btn btn-outline-primary quick-schedule-btn"
                                         data-schedule='[{"day":"tuesday","start":"14:00","end":"16:00"},{"day":"thursday","start":"14:00","end":"16:00"}]'>
-                                        TTh Afternoon (2:00 PM - 4:00 PM)
+                                        <i class="fas fa-calendar-day"></i> TTh Afternoon
                                     </button>
-                                    <button type="button" class="btn btn-outline-info btn-sm quick-schedule-btn"
+                                    <button type="button" class="btn btn-outline-primary quick-schedule-btn"
                                         data-schedule='[{"day":"saturday","start":"10:00","end":"12:00"}]'>
-                                        Saturday Morning (10:00 AM - 12:00 PM)
+                                        <i class="fas fa-calendar-day"></i> Saturday Morning
                                     </button>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clear-schedule">
+                                    <button type="button" class="btn btn-outline-secondary" id="clear-schedule">
                                         <i class="fas fa-eraser"></i> Clear All
                                     </button>
                                 </div>
-                                <small class="text-muted">
+                                <small class="text-muted d-block mt-2">
                                     <i class="fas fa-lightbulb"></i> Click a template to auto-fill or create custom
                                     schedule below
                                 </small>
                             </div>
 
                             <div id="schedules-container">
-                                <div class="schedule-row mb-3 p-3 border rounded bg-light">
-                                    <div class="row align-items-end">
-                                        <div class="col-md-2">
-                                            <label class="form-label">Day of Week</label>
-                                            <select name="days[]" class="form-select" required>
-                                                <option value="">Select Day</option>
-                                                <option value="monday">Monday</option>
-                                                <option value="tuesday">Tuesday</option>
-                                                <option value="wednesday">Wednesday</option>
-                                                <option value="thursday">Thursday</option>
-                                                <option value="friday">Friday</option>
-                                                <option value="saturday">Saturday</option>
-                                                <option value="sunday">Sunday</option>
-                                            </select>
-                                        </div>
-
-                                        <!-- Start Time -->
-                                        <div class="col-md-2">
-                                            <label class="form-label">Start Time</label>
-                                            <div class="d-flex gap-1">
-                                                <select name="start_hours[]" class="form-select form-select-sm"
-                                                    required>
-                                                    <option value="">Hr</option>
-                                                    {% for hour in range(1, 13) %}
-                                                    <option value="{{ hour }}" {{ 'selected' if hour==9 else '' }}>{{
-                                                        hour }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                                <select name="start_minutes[]" class="form-select form-select-sm"
-                                                    required>
-                                                    <option value="00" selected>00</option>
-                                                    <option value="15">15</option>
-                                                    <option value="30">30</option>
-                                                    <option value="45">45</option>
-                                                </select>
-                                                <select name="start_ampm[]" class="form-select form-select-sm" required>
-                                                    <option value="AM" selected>AM</option>
-                                                    <option value="PM">PM</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <!-- End Time -->
-                                        <div class="col-md-2">
-                                            <label class="form-label">End Time</label>
-                                            <div class="d-flex gap-1">
-                                                <select name="end_hours[]" class="form-select form-select-sm" required>
-                                                    <option value="">Hr</option>
-                                                    {% for hour in range(1, 13) %}
-                                                    <option value="{{ hour }}" {{ 'selected' if hour==10 else '' }}>{{
-                                                        hour }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                                <select name="end_minutes[]" class="form-select form-select-sm"
-                                                    required>
-                                                    <option value="00">00</option>
-                                                    <option value="15">15</option>
-                                                    <option value="30" selected>30</option>
-                                                    <option value="45">45</option>
-                                                </select>
-                                                <select name="end_ampm[]" class="form-select form-select-sm" required>
-                                                    <option value="AM" selected>AM</option>
-                                                    <option value="PM">PM</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <!-- Quick Time Buttons -->
-                                        <div class="col-md-3">
-                                            <label class="form-label">Quick Times</label>
-                                            <div class="d-flex flex-wrap gap-1">
-                                                <button type="button"
-                                                    class="btn btn-outline-primary btn-sm time-preset-btn"
-                                                    data-start="09:00" data-end="10:30" data-target="this">
-                                                    9-10:30 AM
-                                                </button>
-                                                <button type="button"
-                                                    class="btn btn-outline-primary btn-sm time-preset-btn"
-                                                    data-start="14:00" data-end="16:00" data-target="this">
-                                                    2-4 PM
-                                                </button>
-                                                <button type="button"
-                                                    class="btn btn-outline-primary btn-sm time-preset-btn"
-                                                    data-start="18:00" data-end="20:00" data-target="this">
-                                                    6-8 PM
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-2">
-                                            <label class="form-label">Location</label>
-                                            <input type="text" name="locations[]" class="form-control form-control-sm"
-                                                placeholder="Room/Location">
-                                        </div>
-
-                                        <div class="col-md-1">
-                                            <button type="button" class="btn btn-danger btn-sm remove-schedule"
-                                                style="display: none;" title="Remove this schedule">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Hidden fields for backend compatibility -->
-                                    <input type="hidden" name="start_times[]" class="start-time-hidden">
-                                    <input type="hidden" name="end_times[]" class="end-time-hidden">
-                                </div>
+                                <!-- Schedule rows will be added here -->
                             </div>
 
-                            <div class="d-flex justify-content-between align-items-center">
-                                <button type="button" id="add-schedule" class="btn btn-success btn-sm">
-                                    <i class="fas fa-plus"></i> Add Another Day/Time
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <button type="button" id="add-schedule" class="btn btn-success">
+                                    <i class="fas fa-plus"></i> Add Another Time Slot
                                 </button>
                                 <small class="text-muted">
                                     <i class="fas fa-info-circle"></i> You can add multiple class times per week
@@ -257,7 +158,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        let scheduleCount = 1;
+        let scheduleCount = 0;
 
         // Convert 24-hour time to 12-hour format components
         function convertTo12Hour(time24) {
@@ -312,69 +213,36 @@
 
         // Add event listeners to time dropdowns for updating hidden fields
         function addTimeListeners(scheduleRow) {
-            const timeSelects = scheduleRow.querySelectorAll('select[name*="hour"], select[name*="minute"], select[name*="ampm"]');
+            const timeSelects = scheduleRow.querySelectorAll('select[name*="hours"], select[name*="minutes"], select[name*="ampm"]');
             timeSelects.forEach(select => {
-                select.addEventListener('change', () => updateHiddenTimeFields(scheduleRow));
+                select.addEventListener('change', () => {
+                    updateHiddenTimeFields(scheduleRow);
+                    validateTimes(scheduleRow);
+                });
             });
         }
 
-        // Quick schedule templates
-        document.querySelectorAll('.quick-schedule-btn').forEach(button => {
-            button.addEventListener('click', function () {
-                const scheduleData = JSON.parse(this.getAttribute('data-schedule'));
+        // Validate that end time is after start time
+        function validateTimes(scheduleRow) {
+            const startTimeHidden = scheduleRow.querySelector('.start-time-hidden').value;
+            const endTimeHidden = scheduleRow.querySelector('.end-time-hidden').value;
 
-                // Clear existing schedules
-                const container = document.getElementById('schedules-container');
-                container.innerHTML = '';
-                scheduleCount = 0;
-
-                // Add schedules from template
-                scheduleData.forEach(schedule => {
-                    addScheduleRow(schedule);
-                });
-
-                updateRemoveButtons();
-            });
-        });
-
-        // Clear schedule button
-        document.getElementById('clear-schedule').addEventListener('click', function () {
-            const container = document.getElementById('schedules-container');
-            container.innerHTML = '';
-            scheduleCount = 0;
-            addScheduleRow(); // Add one empty row
-            updateRemoveButtons();
-        });
-
-        // Time preset buttons
-        document.addEventListener('click', function (e) {
-            if (e.target.classList.contains('time-preset-btn')) {
-                const scheduleRow = e.target.closest('.schedule-row');
-                const startTime = e.target.getAttribute('data-start');
-                const endTime = e.target.getAttribute('data-end');
-
-                // Set start time
-                const startComponents = convertTo12Hour(startTime);
-                scheduleRow.querySelector('select[name="start_hours[]"]').value = startComponents.hour;
-                scheduleRow.querySelector('select[name="start_minutes[]"]').value = startComponents.minute;
-                scheduleRow.querySelector('select[name="start_ampm[]"]').value = startComponents.ampm;
-
-                // Set end time
-                const endComponents = convertTo12Hour(endTime);
-                scheduleRow.querySelector('select[name="end_hours[]"]').value = endComponents.hour;
-                scheduleRow.querySelector('select[name="end_minutes[]"]').value = endComponents.minute;
-                scheduleRow.querySelector('select[name="end_ampm[]"]').value = endComponents.ampm;
-
-                updateHiddenTimeFields(scheduleRow);
+            if (startTimeHidden && endTimeHidden) {
+                if (endTimeHidden <= startTimeHidden) {
+                    scheduleRow.querySelector('.time-error').style.display = 'block';
+                    return false;
+                }
             }
-        });
+            scheduleRow.querySelector('.time-error').style.display = 'none';
+            return true;
+        }
 
         // Add schedule row function
         function addScheduleRow(preset = null) {
             scheduleCount++;
             const container = document.getElementById('schedules-container');
             const newScheduleRow = document.createElement('div');
-            newScheduleRow.className = 'schedule-row mb-3 p-3 border rounded bg-light';
+            newScheduleRow.className = 'schedule-row mb-4 p-3 border rounded bg-light position-relative';
 
             const dayOptions = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
             const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -403,33 +271,33 @@
             }
 
             newScheduleRow.innerHTML = `
-                <div class="row align-items-end">
-                    <div class="col-md-2">
-                        <label class="form-label">Day of Week</label>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">Day of Week *</label>
                         <select name="days[]" class="form-select" required>
                             ${dayOptionsHtml}
                         </select>
                     </div>
                     
                     <!-- Start Time -->
-                    <div class="col-md-2">
-                        <label class="form-label">Start Time</label>
-                        <div class="d-flex gap-1">
-                            <select name="start_hours[]" class="form-select form-select-sm" required>
+                    <div class="col-md-3">
+                        <label class="form-label">Start Time *</label>
+                        <div class="d-flex gap-2 time-selector">
+                            <select name="start_hours[]" class="form-select time-select" required>
                                 <option value="">Hr</option>
                                 ${Array.from({ length: 12 }, (_, i) => {
                 const hour = i + 1;
                 const selected = hour.toString() === startHour ? 'selected' : '';
-                return `<option value="${hour}" ${selected}>${hour}</option>`;
+                return `<option value="${hour}" ${selected}>${hour.toString().padStart(2, '0')}</option>`;
             }).join('')}
                             </select>
-                            <select name="start_minutes[]" class="form-select form-select-sm" required>
+                            <select name="start_minutes[]" class="form-select time-select" required>
                                 <option value="00" ${startMinute === '00' ? 'selected' : ''}>00</option>
                                 <option value="15" ${startMinute === '15' ? 'selected' : ''}>15</option>
                                 <option value="30" ${startMinute === '30' ? 'selected' : ''}>30</option>
                                 <option value="45" ${startMinute === '45' ? 'selected' : ''}>45</option>
                             </select>
-                            <select name="start_ampm[]" class="form-select form-select-sm" required>
+                            <select name="start_ampm[]" class="form-select time-select" required>
                                 <option value="AM" ${startAmPm === 'AM' ? 'selected' : ''}>AM</option>
                                 <option value="PM" ${startAmPm === 'PM' ? 'selected' : ''}>PM</option>
                             </select>
@@ -437,61 +305,45 @@
                     </div>
 
                     <!-- End Time -->
-                    <div class="col-md-2">
-                        <label class="form-label">End Time</label>
-                        <div class="d-flex gap-1">
-                            <select name="end_hours[]" class="form-select form-select-sm" required>
+                    <div class="col-md-3">
+                        <label class="form-label">End Time *</label>
+                        <div class="d-flex gap-2 time-selector">
+                            <select name="end_hours[]" class="form-select time-select" required>
                                 <option value="">Hr</option>
                                 ${Array.from({ length: 12 }, (_, i) => {
                 const hour = i + 1;
                 const selected = hour.toString() === endHour ? 'selected' : '';
-                return `<option value="${hour}" ${selected}>${hour}</option>`;
+                return `<option value="${hour}" ${selected}>${hour.toString().padStart(2, '0')}</option>`;
             }).join('')}
                             </select>
-                            <select name="end_minutes[]" class="form-select form-select-sm" required>
+                            <select name="end_minutes[]" class="form-select time-select" required>
                                 <option value="00" ${endMinute === '00' ? 'selected' : ''}>00</option>
                                 <option value="15" ${endMinute === '15' ? 'selected' : ''}>15</option>
                                 <option value="30" ${endMinute === '30' ? 'selected' : ''}>30</option>
                                 <option value="45" ${endMinute === '45' ? 'selected' : ''}>45</option>
                             </select>
-                            <select name="end_ampm[]" class="form-select form-select-sm" required>
+                            <select name="end_ampm[]" class="form-select time-select" required>
                                 <option value="AM" ${endAmPm === 'AM' ? 'selected' : ''}>AM</option>
                                 <option value="PM" ${endAmPm === 'PM' ? 'selected' : ''}>PM</option>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Quick Time Buttons -->
                     <div class="col-md-3">
-                        <label class="form-label">Quick Times</label>
-                        <div class="d-flex flex-wrap gap-1">
-                            <button type="button" class="btn btn-outline-primary btn-sm time-preset-btn" 
-                                    data-start="09:00" data-end="10:30" data-target="this">
-                                9-10:30 AM
-                            </button>
-                            <button type="button" class="btn btn-outline-primary btn-sm time-preset-btn"
-                                    data-start="14:00" data-end="16:00" data-target="this">
-                                2-4 PM
-                            </button>
-                            <button type="button" class="btn btn-outline-primary btn-sm time-preset-btn"
-                                    data-start="18:00" data-end="20:00" data-target="this">
-                                6-8 PM
+                        <label class="form-label">Location</label>
+                        <div class="d-flex gap-2">
+                            <input type="text" name="locations[]" class="form-control"
+                                placeholder="Room/Location">
+                            <button type="button" class="btn btn-danger remove-schedule"
+                                style="display: none;" title="Remove this time slot">
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </div>
+                </div>
 
-                    <div class="col-md-2">
-                        <label class="form-label">Location</label>
-                        <input type="text" name="locations[]" class="form-control form-control-sm"
-                            placeholder="Room/Location">
-                    </div>
-                    
-                    <div class="col-md-1">
-                        <button type="button" class="btn btn-danger btn-sm remove-schedule"
-                            style="display: none;" title="Remove this schedule">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
+                <div class="time-error text-danger mt-2" style="display: none;">
+                    <i class="fas fa-exclamation-circle"></i> End time must be after start time
                 </div>
 
                 <!-- Hidden fields for backend compatibility -->
@@ -503,7 +355,27 @@
             addTimeListeners(newScheduleRow);
             updateHiddenTimeFields(newScheduleRow);
             updateRemoveButtons();
+            validateTimes(newScheduleRow);
         }
+
+        // Quick schedule templates
+        document.querySelectorAll('.quick-schedule-btn').forEach(button => {
+            button.addEventListener('click', function () {
+                const scheduleData = JSON.parse(this.getAttribute('data-schedule'));
+                const container = document.getElementById('schedules-container');
+                container.innerHTML = '';
+                scheduleCount = 0;
+                scheduleData.forEach(schedule => addScheduleRow(schedule));
+            });
+        });
+
+        // Clear schedule button
+        document.getElementById('clear-schedule').addEventListener('click', function () {
+            const container = document.getElementById('schedules-container');
+            container.innerHTML = '';
+            scheduleCount = 0;
+            addScheduleRow();
+        });
 
         // Add new schedule button
         document.getElementById('add-schedule').addEventListener('click', function () {
@@ -527,12 +399,92 @@
             });
         }
 
-        // Initialize listeners for existing schedule row
-        const existingScheduleRow = document.querySelector('.schedule-row');
-        if (existingScheduleRow) {
-            addTimeListeners(existingScheduleRow);
-            updateHiddenTimeFields(existingScheduleRow);
-        }
+        // Form validation
+        document.getElementById('addGroupForm').addEventListener('submit', function (e) {
+            const scheduleRows = document.querySelectorAll('.schedule-row');
+            let isValid = true;
+
+            scheduleRows.forEach(row => {
+                if (!validateTimes(row)) {
+                    isValid = false;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fix the time errors before submitting.');
+            }
+        });
+
+        // Initialize with one empty schedule row
+        addScheduleRow();
     });
 </script>
+
+<style>
+    /* Form styles */
+    .section {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .section h5 {
+        color: #0d6efd;
+        border-bottom: 2px solid #0d6efd;
+        padding-bottom: 0.5rem;
+    }
+
+    /* Time selector styles */
+    .time-selector {
+        min-width: 220px;
+    }
+
+    .time-select {
+        min-width: 70px;
+    }
+
+    /* Schedule row styles */
+    .schedule-row {
+        transition: all 0.3s ease;
+    }
+
+    .schedule-row:hover {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    /* Button styles */
+    .quick-schedule-btn {
+        transition: all 0.2s ease;
+    }
+
+    .quick-schedule-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .quick-schedule-btn i {
+        margin-right: 0.5rem;
+    }
+
+    /* Error message styles */
+    .time-error {
+        font-size: 0.875rem;
+    }
+
+    .time-error i {
+        margin-right: 0.25rem;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .time-selector {
+            min-width: 180px;
+        }
+
+        .time-select {
+            min-width: 60px;
+        }
+    }
+</style>
 {% endblock %}

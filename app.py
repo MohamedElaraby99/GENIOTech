@@ -2085,6 +2085,8 @@ def update_session_status(session_id):
         'new_status': new_status
     })
 
+
+
 # Attendance Reports and Statistics Routes
 @app.route('/admin/attendance-reports')
 @login_required
@@ -2958,211 +2960,70 @@ def group_detail(group_id):
         flash('Access denied.', 'error')
         return redirect(url_for('groups'))
     
-    # Get group members with detailed info
-    members = db.session.query(GroupMember, Customer).join(Customer).filter(
+    # Get active members with their performance data
+    member_performance = []
+    active_members = db.session.query(GroupMember, Customer).join(Customer).filter(
         GroupMember.group_id == group_id,
         GroupMember.status == 'active'
     ).all()
     
-    # Get all members (including inactive) for history
-    all_members = db.session.query(GroupMember, Customer).join(Customer).filter(
-        GroupMember.group_id == group_id
-    ).order_by(GroupMember.joined_date.desc()).all()
+    # Get all sessions for this group
+    sessions = GroupSession.query.filter_by(group_id=group_id).all()
     
-    # Get upcoming sessions
-    upcoming_sessions = GroupSession.query.filter(
-        GroupSession.group_id == group_id,
-        GroupSession.session_date >= datetime.now().date(),
-        GroupSession.status != 'cancelled'
-    ).order_by(GroupSession.session_date, GroupSession.start_time).limit(10).all()
-    
-    # Get recent sessions with attendance
-    recent_sessions = GroupSession.query.filter(
-        GroupSession.group_id == group_id,
-        GroupSession.session_date < datetime.now().date()
-    ).order_by(GroupSession.session_date.desc(), GroupSession.start_time.desc()).limit(10).all()
-    
-    # Get all sessions for analytics
-    all_sessions = GroupSession.query.filter_by(group_id=group_id).all()
-    
-    # Calculate analytics
-    total_sessions = len(all_sessions)
-    completed_sessions = len([s for s in all_sessions if s.status == 'completed'])
-    cancelled_sessions = len([s for s in all_sessions if s.status == 'cancelled'])
-    
-    # Attendance analytics
-    attendance_stats = {}
-    total_possible_attendance = 0
-    total_present = 0
-    
-    for session in all_sessions:
-        if session.status == 'completed':
-            session_attendance = GroupAttendance.query.filter_by(group_session_id=session.id).all()
-            total_possible_attendance += len(session_attendance)
-            total_present += len([a for a in session_attendance if a.status == 'present'])
-    
-    attendance_rate = (total_present / total_possible_attendance * 100) if total_possible_attendance > 0 else 0
-    
-    # Member performance
-    member_performance = []
-    for member, customer in members:
-        # Get attendance for this member
-        member_attendance = db.session.query(GroupAttendance).join(GroupSession).filter(
+    # Calculate statistics for each member
+    for member, customer in active_members:
+        # Get attendance records
+        attendance_records = db.session.query(GroupAttendance).join(GroupSession).filter(
             GroupSession.group_id == group_id,
-            GroupAttendance.customer_id == customer.id,
-            GroupSession.status == 'completed'
+            GroupAttendance.customer_id == customer.id
         ).all()
         
-        total_sessions_attended = len([a for a in member_attendance if a.status == 'present'])
-        total_sessions_possible = len(member_attendance)
-        attendance_percentage = (total_sessions_attended / total_sessions_possible * 100) if total_sessions_possible > 0 else 0
+        total_sessions = len(sessions)
+        present_count = sum(1 for a in attendance_records if a.status == 'present')
+        late_count = sum(1 for a in attendance_records if a.status == 'late')
+        absent_count = sum(1 for a in attendance_records if a.status == 'absent')
         
-        # Get performance records
-        performance_records = Performance.query.filter_by(
-            customer_id=customer.id,
-            group_id=group_id
-        ).order_by(Performance.assessment_date.desc()).all()
-        
-        avg_score = sum([p.score for p in performance_records if p.score]) / len(performance_records) if performance_records else None
+        # Calculate attendance rate
+        attendance_rate = ((present_count + late_count) / total_sessions * 100) if total_sessions > 0 else 0
         
         member_performance.append({
             'member': member,
             'customer': customer,
-            'attendance_rate': attendance_percentage,
-            'total_sessions': total_sessions_possible,
-            'sessions_attended': total_sessions_attended,
-            'avg_score': avg_score,
-            'recent_performances': performance_records[:3]
-        })
-    
-    # Group history and events
-    group_history = GroupHistory.query.filter_by(group_id=group_id).order_by(
-        GroupHistory.created_at.desc()
-    ).limit(20).all()
-    
-    # Get available customers for adding to group
-    current_member_ids = [member[0].customer_id for member in members]
-    available_customers = Customer.query.filter(
-        ~Customer.id.in_(current_member_ids),
-        Customer.status == 'active'
-    ).all()
-    
-    # Progress timeline data for charts
-    session_dates = [s.session_date for s in all_sessions if s.status == 'completed']
-    session_dates.sort()
-    
-    # Monthly progress
-    monthly_progress = {}
-    for session_date in session_dates:
-        month_key = session_date.strftime('%Y-%m')
-        monthly_progress[month_key] = monthly_progress.get(month_key, 0) + 1
-    
-    # Overall group statistics
-    group_stats = {
-        'total_members': len(members),
-        'total_sessions': total_sessions,
-        'completed_sessions': completed_sessions,
-        'cancelled_sessions': cancelled_sessions,
-        'attendance_rate': round(attendance_rate, 1),
-        'completion_rate': round((completed_sessions / total_sessions * 100) if total_sessions > 0 else 0, 1),
-        'active_since_days': (datetime.now().date() - group.start_date).days,
-        'avg_session_duration': sum([(datetime.combine(datetime.today(), s.end_time) - 
-                                    datetime.combine(datetime.today(), s.start_time)).seconds / 60 
-                                   for s in all_sessions]) / len(all_sessions) if all_sessions else 0
-    }
-    
-    # Create detailed attendance matrix for table display
-    attendance_matrix = {}
-    completed_sessions = [s for s in all_sessions if s.status == 'completed']
-    completed_sessions.sort(key=lambda x: x.session_date, reverse=True)
-    
-    # Limit to last 20 sessions for performance
-    recent_completed_sessions = completed_sessions[:20]
-    
-    for session in recent_completed_sessions:
-        session_key = f"{session.session_date}_{session.id}"
-        attendance_matrix[session_key] = {
-            'session': session,
-            'attendance': {}
-        }
-        
-        # Get attendance records for this session
-        session_attendance = GroupAttendance.query.filter_by(group_session_id=session.id).all()
-        for record in session_attendance:
-            attendance_matrix[session_key]['attendance'][record.customer_id] = {
-                'status': record.status,
-                'notes': record.notes,
-                'recorded_at': record.recorded_at
-            }
-    
-    # Enhanced member performance with detailed attendance history
-    enhanced_member_performance = []
-    for member, customer in members:
-        # Get all attendance records for this member
-        member_attendance_records = db.session.query(GroupAttendance).join(GroupSession).filter(
-            GroupSession.group_id == group_id,
-            GroupAttendance.customer_id == customer.id,
-            GroupSession.status == 'completed'
-        ).order_by(GroupSession.session_date.desc()).all()
-        
-        # Calculate detailed statistics
-        total_sessions = len(member_attendance_records)
-        present_count = len([a for a in member_attendance_records if a.status == 'present'])
-        late_count = len([a for a in member_attendance_records if a.status == 'late'])
-        absent_count = len([a for a in member_attendance_records if a.status == 'absent'])
-        excused_count = len([a for a in member_attendance_records if a.status == 'excused'])
-        
-        attendance_percentage = (present_count / total_sessions * 100) if total_sessions > 0 else 0
-        
-        # Get recent attendance (last 10 sessions)
-        recent_attendance = member_attendance_records[:10]
-        
-        # Calculate attendance streak (consecutive present sessions)
-        current_streak = 0
-        for record in member_attendance_records:
-            if record.status == 'present':
-                current_streak += 1
-            else:
-                break
-        
-        # Get performance records
-        performance_records = Performance.query.filter_by(
-            customer_id=customer.id,
-            group_id=group_id
-        ).order_by(Performance.assessment_date.desc()).all()
-        
-        avg_score = sum([p.score for p in performance_records if p.score]) / len(performance_records) if performance_records else None
-        
-        enhanced_member_performance.append({
-            'member': member,
-            'customer': customer,
-            'attendance_rate': attendance_percentage,
-            'total_sessions': total_sessions,
+            'attendance_rate': attendance_rate,
             'present_count': present_count,
             'late_count': late_count,
-            'absent_count': absent_count,
-            'excused_count': excused_count,
-            'current_streak': current_streak,
-            'recent_attendance': recent_attendance,
-            'avg_score': avg_score,
-            'recent_performances': performance_records[:3],
-            'attendance_records': member_attendance_records
+            'absent_count': absent_count
         })
     
+    # Get available customers (not already in the group)
+    subquery = db.session.query(GroupMember.customer_id).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.status == 'active'
+    ).subquery()
+    
+    available_customers = Customer.query.filter(
+        Customer.status == 'active',
+        ~Customer.id.in_(subquery)
+    ).order_by(Customer.first_name, Customer.last_name).all()
+    
+    # Calculate group statistics
+    group_stats = {
+        'total_members': len(active_members),
+        'total_sessions': len(sessions),
+        'completed_sessions': len([s for s in sessions if s.status == 'completed']),
+        'active_since_days': (datetime.now().date() - group.start_date).days,
+        'attendance_rate': sum(p['attendance_rate'] for p in member_performance) / len(member_performance) if member_performance else 0,
+        'avg_session_duration': sum((s.end_time.hour * 60 + s.end_time.minute) - (s.start_time.hour * 60 + s.start_time.minute) for s in sessions) / len(sessions) if sessions else 0
+    }
+    
+    group_stats['completion_rate'] = (group_stats['completed_sessions'] / group_stats['total_sessions'] * 100) if group_stats['total_sessions'] > 0 else 0
+    
     return render_template('group_detail.html', 
-                         group=group, 
-                         members=members,
-                         all_members=all_members,
-                         upcoming_sessions=upcoming_sessions, 
-                         recent_sessions=recent_sessions,
+                         group=group,
+                         member_performance=member_performance,
                          available_customers=available_customers,
-                         member_performance=enhanced_member_performance,
-                         group_history=group_history,
                          group_stats=group_stats,
-                         monthly_progress=monthly_progress,
-                         attendance_matrix=attendance_matrix,
-                         recent_completed_sessions=recent_completed_sessions,
-                         current_date=datetime.now().date())
+                         current_date=datetime.now())
 
 @app.route('/groups/<int:group_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -3223,8 +3084,7 @@ def add_group_member(group_id):
     if current_user.role == 'instructor' and group.instructor_id != current_user.id:
         flash('Access denied. You can only manage your own groups.', 'error')
         return redirect(url_for('group_detail', group_id=group_id))
-        
-    group = Group.query.get_or_404(group_id)
+    
     customer_id = request.form['customer_id']
     
     # Check if already a member
@@ -3248,6 +3108,19 @@ def add_group_member(group_id):
                 notes=request.form.get('notes', '')
             )
             db.session.add(member)
+            
+            # Log the event
+            log_group_event(
+                group_id=group_id,
+                event_type='member_added',
+                description=f'New member added to group',
+                created_by_id=current_user.id,
+                event_data=json.dumps({
+                    'customer_id': customer_id,
+                    'notes': request.form.get('notes', '')
+                })
+            )
+            
             db.session.commit()
             flash('Member added successfully!', 'success')
     
@@ -3616,4 +3489,4 @@ def init_database():
 
 if __name__ == '__main__':
     init_database()
-    app.run(host='0.0.0.0', port=8002) 
+    app.run(host=app.config['HOST'], port=app.config['PORT'], debug=True) 

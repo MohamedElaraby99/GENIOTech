@@ -279,17 +279,14 @@
 {% endfor %}
 
 <script>
-    function cancelSession(sessionId) {
-        if (confirm('Are you sure you want to cancel this session?')) {
-            // For now, we'll just show an alert. You can implement the actual cancellation logic
-            alert('Session cancellation functionality will be implemented.');
-        }
-    }
-
     // Set default date to today for new sessions
     document.addEventListener('DOMContentLoaded', function () {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('session_date').value = today;
     });
 </script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/group_sessions.js') }}"></script>
 {% endblock %}

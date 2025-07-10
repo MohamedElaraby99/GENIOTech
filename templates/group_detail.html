@@ -209,57 +209,33 @@
                                         </div>
                                     </div>
 
-                                    <!-- Group Info -->
+                                    <!-- Group Details -->
                                     <div class="card border-0 shadow-sm mt-3">
                                         <div class="card-header">
                                             <h5 class="card-title mb-0">
-                                                <i class="fas fa-info-circle"></i> Group Information
+                                                <i class="fas fa-info-circle"></i> Group Details
                                             </h5>
                                         </div>
                                         <div class="card-body">
-                                            {% if group.description %}
-                                            <div class="mb-3">
-                                                <strong>Description:</strong><br>
-                                                <small class="text-muted">{{ group.description|nl2br|safe }}</small>
-                                            </div>
-                                            {% endif %}
+                                            <dl class="row mb-0">
+                                                <dt class="col-sm-4">Start Date</dt>
+                                                <dd class="col-sm-8">{{ group.start_date.strftime('%Y-%m-%d') }}</dd>
 
-                                            <div class="row g-2">
-                                                <div class="col-6">
-                                                    <strong>Start Date:</strong><br>
-                                                    <small>{{ group.start_date.strftime('%Y-%m-%d') }}</small>
-                                                </div>
-                                                <div class="col-6">
-                                                    <strong>End Date:</strong><br>
-                                                    <small>{% if group.end_date %}{{ group.end_date.strftime('%Y-%m-%d')
-                                                        }}{% else %}Ongoing{% endif %}</small>
-                                                </div>
-                                                <div class="col-6">
-                                                    <strong>Status:</strong><br>
-                                                    <span
-                                                        class="badge bg-{{ 'success' if group.status == 'active' else 'secondary' }}">
+                                                <dt class="col-sm-4">End Date</dt>
+                                                <dd class="col-sm-8">
+                                                    {{ group.end_date.strftime('%Y-%m-%d') if group.end_date else 'Ongoing' }}
+                                                </dd>
+
+                                                <dt class="col-sm-4">Status</dt>
+                                                <dd class="col-sm-8">
+                                                    <span class="badge bg-{{ 'success' if group.status == 'active' else 'warning' if group.status == 'inactive' else 'info' }}">
                                                         {{ group.status.title() }}
                                                     </span>
-                                                </div>
-                                                <div class="col-6">
-                                                    <strong>Created:</strong><br>
-                                                    <small>{{ group.created_at.strftime('%Y-%m-%d') }}</small>
-                                                </div>
-                                            </div>
+                                                </dd>
 
-                                            {% if group.schedules %}
-                                            <div class="mt-3">
-                                                <strong>Schedule:</strong><br>
-                                                {% for schedule in group.schedules %}
-                                                <span class="badge bg-info me-1 mb-1">
-                                                    {{ schedule.day_of_week.title() }}: {{
-                                                    schedule.start_time.strftime('%H:%M') }}-{{
-                                                    schedule.end_time.strftime('%H:%M') }}
-                                                    {% if schedule.location %} @ {{ schedule.location }}{% endif %}
-                                                </span>
-                                                {% endfor %}
-                                            </div>
-                                            {% endif %}
+                                                <dt class="col-sm-4">Description</dt>
+                                                <dd class="col-sm-8">{{ group.description or 'No description provided.' }}</dd>
+                                            </dl>
                                         </div>
                                     </div>
                                 </div>
@@ -268,140 +244,72 @@
 
                         <!-- Members Tab -->
                         <div class="tab-pane fade" id="members" role="tabpanel">
-                            <div class="row">
-                                <div class="col-12">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <h5>Active Members ({{ members|length }})</h5>
-                                        {% if current_user.role != 'instructor' %}
-                                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal"
-                                            data-bs-target="#addMemberModal">
-                                            <i class="fas fa-plus"></i> Add Member
-                                        </button>
-                                        {% endif %}
-                                    </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h4 class="mb-0">Group Members</h4>
+                                {% if current_user.role != 'instructor' %}
+                                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                                    <i class="fas fa-user-plus"></i> Add Member
+                                </button>
+                                {% endif %}
+                            </div>
 
-                                    {% if members %}
-                                    <div class="table-responsive">
-                                        <table class="table table-hover">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Member</th>
-                                                    <th>Contact</th>
-                                                    <th>Joined</th>
-                                                    <th>Attendance</th>
-                                                    <th>Performance</th>
-                                                    <th>Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for perf_data in member_performance %}
-                                                <tr>
-                                                    <td>
-                                                        <div class="d-flex align-items-center">
-                                                            <div
-                                                                class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2">
-                                                                {{ perf_data.customer.first_name[0] }}{{
-                                                                perf_data.customer.last_name[0] }}
-                                                            </div>
-                                                            <div>
-                                                                <a href="{{ url_for('customer_detail', customer_id=perf_data.customer.id) }}"
-                                                                    class="text-decoration-none">
-                                                                    <strong>{{ perf_data.customer.first_name }} {{
-                                                                        perf_data.customer.last_name }}</strong>
-                                                                </a>
-                                                                <br>
-                                                                <small class="text-muted">ID: {{ perf_data.customer.id
-                                                                    }}</small>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {% if perf_data.customer.phone %}
-                                                        <a href="tel:{{ perf_data.customer.phone }}"
-                                                            class="text-decoration-none">
-                                                            <i class="fas fa-phone"></i> {{ perf_data.customer.phone }}
-                                                        </a>
-                                                        {% else %}
-                                                        <span class="text-muted">No phone</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        {{ perf_data.member.joined_date.strftime('%Y-%m-%d') }}
-                                                        <br>
-                                                        <small class="text-muted">{{ ((current_date -
-                                                            perf_data.member.joined_date.date()).days) }} days
-                                                            ago</small>
-                                                    </td>
-                                                    <td>
-                                                        <div class="d-flex align-items-center">
-                                                            <div class="progress flex-grow-1 me-2" style="height: 8px;">
-                                                                <div class="progress-bar bg-{{ 'success' if perf_data.attendance_rate >= 80 else 'warning' if perf_data.attendance_rate >= 60 else 'danger' }}"
-                                                                    style="width: {{ perf_data.attendance_rate }}%">
-                                                                </div>
-                                                            </div>
-                                                            <small class="text-muted">{{
-                                                                "%.1f"|format(perf_data.attendance_rate) }}%</small>
-                                                        </div>
-                                                        <small class="text-muted">{{ perf_data.sessions_attended }}/{{
-                                                            perf_data.total_sessions }} sessions</small>
-                                                    </td>
-                                                    <td>
-                                                        {% if perf_data.avg_score %}
-                                                        <span
-                                                            class="badge bg-{{ 'success' if perf_data.avg_score >= 80 else 'warning' if perf_data.avg_score >= 60 else 'danger' }}">
-                                                            {{ "%.1f"|format(perf_data.avg_score) }}%
-                                                        </span>
-                                                        {% else %}
-                                                        <span class="text-muted">No assessments</span>
-                                                        {% endif %}
-                                                    </td>
-                                                    <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            <a href="{{ url_for('customer_detail', customer_id=perf_data.customer.id) }}"
-                                                                class="btn btn-outline-primary btn-sm"
-                                                                title="ملف الطالب">
-                                                                <i class="fas fa-eye"></i>
-                                                            </a>
-                                                            <a href="{{ url_for('member_attendance_detail', group_id=group.id, customer_id=perf_data.customer.id) }}"
-                                                                class="btn btn-outline-info btn-sm"
-                                                                title="سجل الحضور التفصيلي">
-                                                                <i class="fas fa-calendar-check"></i>
-                                                            </a>
-                                                            {% if current_user.role != 'instructor' %}
-                                                            <form method="POST"
-                                                                action="{{ url_for('remove_group_member', group_id=group.id, member_id=perf_data.member.id) }}"
-                                                                style="display: inline;">
-                                                                <button type="submit"
-                                                                    class="btn btn-outline-danger btn-sm"
-                                                                    onclick="return confirm('Remove this member from the group?')"
-                                                                    title="إزالة من المجموعة">
-                                                                    <i class="fas fa-times"></i>
-                                                                </button>
-                                                            </form>
-                                                            {% endif %}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    {% else %}
-                                    <div class="text-center py-5">
-                                        <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
-                                        <h5 class="text-muted">No members yet</h5>
-                                        {% if current_user.role != 'instructor' %}
-                                        <p class="text-muted">Add your first member to get started!</p>
-                                        <button class="btn btn-primary" data-bs-toggle="modal"
-                                            data-bs-target="#addMemberModal">
-                                            <i class="fas fa-plus"></i> Add First Member
-                                        </button>
-                                        {% else %}
-                                        <p class="text-muted">No members have been added to this group yet.</p>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Member</th>
+                                            <th>Attendance</th>
+                                            <th>Present</th>
+                                            <th>Late</th>
+                                            <th>Absent</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for detail in member_performance %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div>
+                                                        <h6 class="mb-0">{{ detail.customer.first_name }} {{ detail.customer.last_name }}</h6>
+                                                        <small class="text-muted">Joined {{ detail.member.joined_date.strftime('%Y-%m-%d') }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="progress attendance-progress">
+                                                    <div class="progress-bar bg-success attendance-progress-bar" role="progressbar"
+                                                        {% set width = detail.attendance_rate|string + '%' %}
+                                                        style="width: {{ width }}"
+                                                        aria-valuenow="{{ detail.attendance_rate }}" aria-valuemin="0"
+                                                        aria-valuemax="100">
+                                                        {{ detail.attendance_rate|round(1) }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td><span class="badge bg-success">{{ detail.present_count }}</span></td>
+                                            <td><span class="badge bg-warning">{{ detail.late_count }}</span></td>
+                                            <td><span class="badge bg-danger">{{ detail.absent_count }}</span></td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="{{ url_for('customer_detail', customer_id=detail.customer.id) }}"
+                                                        class="btn btn-outline-primary">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    {% if current_user.role != 'instructor' %}
+                                                    <form action="{{ url_for('remove_group_member', group_id=group.id, member_id=detail.member.id) }}"
+                                                        method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to remove this member?');">
+                                                        <button type="submit" class="btn btn-outline-danger">
+                                                            <i class="fas fa-user-minus"></i>
+                                                        </button>
+                                                    </form>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -876,29 +784,28 @@
 </div>
 
 <!-- Add Member Modal -->
-<div class="modal fade" id="addMemberModal" tabindex="-1">
+<div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Add Member to Group</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('add_group_member', group_id=group.id) }}">
+            <form method="POST" action="{{ url_for('add_group_member', group_id=group.id) }}" id="addMemberForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addMemberModalLabel">Add Member to Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="customer_id" class="form-label">Select Customer</label>
                         <select class="form-select" id="customer_id" name="customer_id" required>
                             <option value="">Choose a customer...</option>
                             {% for customer in available_customers %}
-                            <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }} ({{
-                                customer.phone or 'No phone' }})</option>
+                            <option value="{{ customer.id }}">{{ customer.first_name }} {{ customer.last_name }}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="member_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="member_notes" name="notes" rows="3"
-                            placeholder="Optional notes about this member..."></textarea>
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -911,29 +818,18 @@
 </div>
 
 <!-- Add Session Modal -->
-<div class="modal fade" id="addSessionModal" tabindex="-1">
+<div class="modal fade" id="addSessionModal" tabindex="-1" aria-labelledby="addSessionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Schedule New Session</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('add_group_session', group_id=group.id) }}">
+            <form method="POST" action="{{ url_for('add_group_session', group_id=group.id) }}" id="addSessionForm">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addSessionModalLabel">Schedule New Session</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
                 <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="session_date" class="form-label">Date</label>
-                                <input type="date" class="form-control" id="session_date" name="session_date" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="topic" class="form-label">Topic</label>
-                                <input type="text" class="form-control" id="topic" name="topic"
-                                    placeholder="Session topic...">
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        <label for="session_date" class="form-label">Session Date</label>
+                        <input type="date" class="form-control" id="session_date" name="session_date" required>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
@@ -951,18 +847,20 @@
                     </div>
                     <div class="mb-3">
                         <label for="location" class="form-label">Location</label>
-                        <input type="text" class="form-control" id="location" name="location"
-                            placeholder="Session location...">
+                        <input type="text" class="form-control" id="location" name="location">
+                    </div>
+                    <div class="mb-3">
+                        <label for="topic" class="form-label">Topic</label>
+                        <input type="text" class="form-control" id="topic" name="topic">
                     </div>
                     <div class="mb-3">
                         <label for="session_notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="session_notes" name="notes" rows="3"
-                            placeholder="Session notes..."></textarea>
+                        <textarea class="form-control" id="session_notes" name="notes" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Schedule Session</button>
+                    <button type="submit" class="btn btn-primary">Schedule Session</button>
                 </div>
             </form>
         </div>
@@ -1047,37 +945,66 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Set minimum dates for session scheduling
-        const dateInputs = document.querySelectorAll('input[type="date"]');
-        const today = new Date().toISOString().split('T')[0];
-        dateInputs.forEach(input => {
-            if (input.name === 'session_date') {
-                input.min = today;
-            } else if (input.name === 'assessment_date') {
-                input.max = today;
-            }
-        });
-
-        // Progress Chart
-        const progressCtx = document.getElementById('progressChart');
-        if (progressCtx) {
-            const monthlyData = {{ monthly_progress| tojson
+    // Form validation and submission handling
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add Member Form
+        const addMemberForm = document.getElementById('addMemberForm');
+        if (addMemberForm) {
+            addMemberForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const customerId = document.getElementById('customer_id').value;
+                if (!customerId) {
+                    alert('Please select a customer');
+                    return;
+                }
+                this.submit();
+            });
         }
-    };
-    const labels = Object.keys(monthlyData).sort();
-    const data = labels.map(label => monthlyData[label]);
 
-    new Chart(progressCtx, {
+        // Add Session Form
+        const addSessionForm = document.getElementById('addSessionForm');
+        if (addSessionForm) {
+            addSessionForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const sessionDate = document.getElementById('session_date').value;
+                const startTime = document.getElementById('start_time').value;
+                const endTime = document.getElementById('end_time').value;
+
+                if (!sessionDate || !startTime || !endTime) {
+                    alert('Please fill in all required fields');
+                    return;
+                }
+
+                // Validate end time is after start time
+                const sessionDateTime = new Date(sessionDate + 'T' + startTime);
+                const endDateTime = new Date(sessionDate + 'T' + endTime);
+                if (endDateTime <= sessionDateTime) {
+                    alert('End time must be after start time');
+                    return;
+                }
+
+                this.submit();
+            });
+        }
+    });
+
+    // Monthly Progress Chart
+    const ctx = document.getElementById('progressChart').getContext('2d');
+    const progressData = {{ monthly_progress|tojson }};
+    
+    const labels = Object.keys(progressData);
+    const data = Object.values(progressData);
+    
+    new Chart(ctx, {
         type: 'line',
         data: {
             labels: labels,
             datasets: [{
-                label: 'Sessions Completed',
+                label: 'Sessions per Month',
                 data: data,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                tension: 0.4,
+                borderColor: '#4e73df',
+                backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                tension: 0.3,
                 fill: true
             }]
         },
@@ -1087,10 +1014,6 @@
             plugins: {
                 legend: {
                     display: false
-                },
-                title: {
-                    display: true,
-                    text: 'Monthly Session Progress'
                 }
             },
             scales: {
@@ -1103,7 +1026,6 @@
             }
         }
     });
-        }
 
     // Attendance matrix functionality
     function exportAttendance() {
@@ -1194,7 +1116,6 @@
                 this.title = `${student} - ${sessionDate}`;
             }
         });
-    });
     });
 </script>
 
