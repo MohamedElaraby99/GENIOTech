@@ -14,9 +14,11 @@
                             {{ group.instructor.last_name }}</p>
                     </div>
                     <div class="btn-group">
+                        {% if current_user.role != 'instructor' %}
                         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSessionModal">
                             <i class="fas fa-plus"></i> Add Session
                         </button>
+                        {% endif %}
                         <a href="{{ url_for('group_detail', group_id=group.id) }}" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Back to Group
                         </a>
@@ -121,10 +123,12 @@
                     <div class="py-5">
                         <i class="fas fa-calendar-alt fa-4x text-muted mb-3"></i>
                         <h4>No Sessions Scheduled</h4>
-                        <p class="text-muted">Start by adding your first session for this group.</p>
+                        <p class="text-muted">No sessions have been scheduled for this group yet.</p>
+                        {% if current_user.role != 'instructor' %}
                         <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSessionModal">
                             <i class="fas fa-plus"></i> Add First Session
                         </button>
+                        {% endif %}
                     </div>
                 </div>
             </div>

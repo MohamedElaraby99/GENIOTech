@@ -1902,6 +1902,11 @@ def sessions():
 @app.route('/sessions/add', methods=['GET', 'POST'])
 @login_required
 def add_session():
+    # Prevent instructors from creating new sessions
+    if current_user.role == 'instructor':
+        flash('Access denied. Instructors cannot create new sessions.', 'error')
+        return redirect(url_for('sessions'))
+
     if request.method == 'POST':
         # Get multiple customer IDs from form
         customer_ids = request.form.getlist('customer_ids')
@@ -3298,13 +3303,11 @@ def group_sessions(group_id):
 @app.route('/groups/<int:group_id>/sessions/add', methods=['POST'])
 @login_required
 def add_group_session(group_id):
-    group = Group.query.get_or_404(group_id)
-    
-    # Check permissions - instructors can only manage their own groups
-    if current_user.role == 'instructor' and group.instructor_id != current_user.id:
-        flash('Access denied. You can only schedule sessions for your own groups.', 'error')
+    # Prevent instructors from creating new group sessions
+    if current_user.role == 'instructor':
+        flash('Access denied. Instructors cannot create new group sessions.', 'error')
         return redirect(url_for('group_sessions', group_id=group_id))
-        
+
     group = Group.query.get_or_404(group_id)
     
     session = GroupSession(

@@ -64,10 +64,12 @@
                                     data-bs-target="#addNoteModal">
                                     <i class="fas fa-sticky-note"></i> Add Note
                                 </button>
+                                {% if current_user.role != 'instructor' %}
                                 <a href="{{ url_for('add_session') }}?customer={{ customer.id }}"
                                     class="btn btn-outline-info">
                                     <i class="fas fa-calendar-plus"></i> Schedule
                                 </a>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
