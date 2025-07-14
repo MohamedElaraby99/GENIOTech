@@ -1,6 +1,6 @@
-from app import db, User, Customer, Group, GroupMember, GroupSession, GroupAttendance, Session
-from app import Note, Ticket, TicketUpdate, Performance, CourseCategory, GroupSchedule
-from app import CustomerEvent, GroupEvent
+from app import app, db, User, Customer, Group, GroupMember, GroupSession, GroupAttendance, Session
+from app import Note, Ticket, Performance, CourseCategory, GroupSchedule, Course
+from app import CustomerHistory, GroupHistory, AuditLog, Communication
 
 def clear_all_data():
     """Delete all data from the database while preserving table structure."""
@@ -8,15 +8,18 @@ def clear_all_data():
         print("Starting database cleanup...")
         
         # Delete data in the correct order to avoid foreign key constraints
-        print("Deleting events and logs...")
-        CustomerEvent.query.delete()
-        GroupEvent.query.delete()
+        print("Deleting communications...")
+        Communication.query.delete()
+        
+        print("Deleting audit logs and history...")
+        AuditLog.query.delete()
+        CustomerHistory.query.delete()
+        GroupHistory.query.delete()
         
         print("Deleting performance records...")
         Performance.query.delete()
         
-        print("Deleting ticket data...")
-        TicketUpdate.query.delete()
+        print("Deleting tickets...")
         Ticket.query.delete()
         
         print("Deleting notes...")
@@ -33,8 +36,9 @@ def clear_all_data():
         GroupSchedule.query.delete()
         GroupMember.query.delete()
         
-        print("Deleting groups...")
+        print("Deleting groups and courses...")
         Group.query.delete()
+        Course.query.delete()
         
         print("Deleting categories...")
         CourseCategory.query.delete()
@@ -68,6 +72,7 @@ if __name__ == "__main__":
     confirmation = input("Are you sure you want to continue? (yes/no): ")
     
     if confirmation.lower() == 'yes':
-        clear_all_data()
+        with app.app_context():
+            clear_all_data()
     else:
         print("Operation cancelled.") 
