@@ -161,6 +161,7 @@ class Customer(db.Model):
     phone2 = db.Column(db.String(20))  # Second phone number
     age = db.Column(db.Integer)  # Customer age
     status = db.Column(db.String(20), default='active')  # active, inactive, needs_follow_up, no_show
+    is_active = db.Column(db.Boolean, default=True)  # Flag for active/inactive status
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))  # Track who added the customer
     initial_notes = db.Column(db.Text)
@@ -2942,13 +2943,43 @@ def add_group():
                 )
                 db.session.add(schedule)
         
+        # Handle student assignments
+        student_ids = request.form.getlist('student_ids[]')
+        if student_ids:
+            for student_id in student_ids:
+                if student_id:  # Skip empty values
+                    # Add student to group
+                    group_member = GroupMember(
+                        group_id=group.id,
+                        customer_id=student_id,
+                        status='active'
+                    )
+                    db.session.add(group_member)
+                    
+                    # Get customer info for logging
+                    customer = Customer.query.get(student_id)
+                    if customer:
+                        # Log this activity
+                        log_group_event(
+                            group_id=group.id,
+                            event_type='member_added',
+                            description=f'Student {customer.first_name} {customer.last_name} enrolled during group creation',
+                            event_data={'customer_id': student_id},
+                            created_by_id=current_user.id
+                        )
+        
         db.session.commit()
-        flash('Group created successfully!', 'success')
+        flash('Group created successfully with selected students!', 'success')
         return redirect(url_for('groups'))
     
     instructors = User.query.filter_by(role='instructor', is_active=True).all()
     categories = CourseCategory.query.all()
-    return render_template('add_group.html', instructors=instructors, categories=categories)
+    # Get all active customers for student selection
+    customers = Customer.query.filter_by(is_active=True).order_by(Customer.first_name).all()
+    print(f"Found {len(customers)} active customers")
+    for customer in customers[:5]:  # Print first 5 customers for debugging
+        print(f"Customer: {customer.first_name} {customer.last_name} (ID: {customer.id})")
+    return render_template('add_group.html', instructors=instructors, categories=categories, customers=customers)
 
 @app.route('/groups/<int:group_id>')
 @login_required

@@ -6,151 +6,63 @@ import os
 import sqlite3
 from pathlib import Path
 
-from app import db, User, Customer, Course, Ticket, Session, Note, CourseCategory, Group, GroupSchedule
-from app import GroupMember, GroupSession, GroupAttendance, AuditLog, CustomerHistory, GroupHistory, Performance, Communication
+from app import app, db, Customer, User
+from datetime import datetime
 
-print("🔍 Debug: SQLite Database Setup")
-print("="*50)
+def check_customers():
+    with app.app_context():
+        total_customers = Customer.query.count()
+        active_customers = Customer.query.filter_by(is_active=True).count()
+        print(f"Total customers: {total_customers}")
+        print(f"Active customers: {active_customers}")
+        
+        # Print first 5 active customers
+        print("\nFirst 5 active customers:")
+        active_customers = Customer.query.filter_by(is_active=True).limit(5).all()
+        for customer in active_customers:
+            print(f"- {customer.first_name} {customer.last_name} (ID: {customer.id})")
 
-# Get current directory
-current_dir = os.getcwd()
-print(f"Current directory: {current_dir}")
-
-# Get script directory
-script_dir = os.path.dirname(os.path.abspath(__file__))
-print(f"Script directory: {script_dir}")
-
-# Check instance directory
-instance_dir = os.path.join(script_dir, "instance")
-print(f"Instance directory: {instance_dir}")
-print(f"Instance exists: {os.path.exists(instance_dir)}")
-
-if not os.path.exists(instance_dir):
-    os.makedirs(instance_dir)
-    print("✅ Created instance directory")
-
-# Database file path
-db_path = os.path.join(instance_dir, "crm.db")
-print(f"Database path: {db_path}")
-print(f"Database exists: {os.path.exists(db_path)}")
-
-# Check permissions
-try:
-    # Try to create/open the database
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
-    # Test creating a simple table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS test (
-            id INTEGER PRIMARY KEY,
-            name TEXT
-        )
-    ''')
-    
-    # Test inserting data
-    cursor.execute("INSERT INTO test (name) VALUES (?)", ("test_entry",))
-    conn.commit()
-    
-    # Test querying
-    cursor.execute("SELECT * FROM test")
-    result = cursor.fetchall()
-    print(f"✅ Database test successful: {result}")
-    
-    # Clean up test table
-    cursor.execute("DROP TABLE test")
-    conn.commit()
-    conn.close()
-    
-    print("✅ SQLite database is working correctly!")
-    
-except Exception as e:
-    print(f"❌ Database error: {e}")
-
-# Test the SQLAlchemy URL format
-base_dir = os.path.abspath(os.path.dirname(__file__))
-db_url = f'sqlite:///{os.path.join(base_dir, "instance", "crm.db")}'
-print(f"SQLAlchemy URL: {db_url}")
-
-# Test loading the app config
-try:
-    from config import config
-    app_config = config['development']
-    print(f"App config DB URI: {app_config.SQLALCHEMY_DATABASE_URI}")
-except Exception as e:
-    print(f"❌ Config error: {e}") 
-
-def clear_database():
-    """Clear all data from the database while respecting foreign key constraints."""
-    print("Starting database cleanup...")
-    
-    try:
-        # Delete data in reverse order of dependencies
-        print("Deleting Communication records...")
-        Communication.query.delete()
+def create_test_customers():
+    with app.app_context():
+        # Get admin user for created_by_id
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            print("Error: Admin user not found")
+            return
         
-        print("Deleting Performance records...")
-        Performance.query.delete()
+        # Create test customers
+        test_customers = [
+            {"first_name": "John", "last_name": "Doe"},
+            {"first_name": "Jane", "last_name": "Smith"},
+            {"first_name": "Michael", "last_name": "Johnson"},
+            {"first_name": "Sarah", "last_name": "Williams"},
+            {"first_name": "David", "last_name": "Brown"}
+        ]
         
-        print("Deleting GroupHistory records...")
-        GroupHistory.query.delete()
+        for customer_data in test_customers:
+            customer = Customer(
+                first_name=customer_data["first_name"],
+                last_name=customer_data["last_name"],
+                created_by_id=admin.id,
+                is_active=True,
+                status='active',
+                created_at=datetime.utcnow()
+            )
+            db.session.add(customer)
         
-        print("Deleting CustomerHistory records...")
-        CustomerHistory.query.delete()
-        
-        print("Deleting AuditLog records...")
-        AuditLog.query.delete()
-        
-        print("Deleting GroupAttendance records...")
-        GroupAttendance.query.delete()
-        
-        print("Deleting GroupSession records...")
-        GroupSession.query.delete()
-        
-        print("Deleting GroupMember records...")
-        GroupMember.query.delete()
-        
-        print("Deleting GroupSchedule records...")
-        GroupSchedule.query.delete()
-        
-        print("Deleting Group records...")
-        Group.query.delete()
-        
-        print("Deleting CourseCategory records...")
-        CourseCategory.query.delete()
-        
-        print("Deleting Note records...")
-        Note.query.delete()
-        
-        print("Deleting Session records...")
-        Session.query.delete()
-        
-        print("Deleting Ticket records...")
-        Ticket.query.delete()
-        
-        print("Deleting Course records...")
-        Course.query.delete()
-        
-        print("Deleting Customer records...")
-        Customer.query.delete()
-        
-        # Keep one admin user for system access
-        print("Removing all users except admin...")
-        User.query.filter(User.username != 'admin').delete()
-        
-        # Commit the changes
-        db.session.commit()
-        print("Database cleared successfully!")
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"Error clearing database: {str(e)}")
-        raise
+        try:
+            db.session.commit()
+            print("Created test customers successfully")
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating test customers: {e}")
 
 if __name__ == '__main__':
-    # Ask for confirmation
-    response = input("WARNING: This will delete all data from the database. Are you sure? (yes/no): ")
-    if response.lower() == 'yes':
-        clear_database()
-    else:
-        print("Operation cancelled.") 
+    print("Before creating test customers:")
+    check_customers()
+    
+    print("\nCreating test customers...")
+    create_test_customers()
+    
+    print("\nAfter creating test customers:")
+    check_customers() 

@@ -87,6 +87,33 @@
                             </div>
                         </div>
 
+                        <!-- Students Section -->
+                        <div class="section mb-4">
+                            <h5 class="mb-3"><i class="fas fa-user-graduate"></i> Add Students</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Select Students</label>
+                                <!-- Debug info -->
+                                {% if customers %}
+                                <small class="text-muted d-block mb-2">{{ customers|length }} students available</small>
+                                {% else %}
+                                <small class="text-danger d-block mb-2">No students available</small>
+                                {% endif %}
+                                <div class="select2-container">
+                                    <select class="form-select" id="students" name="student_ids[]" multiple
+                                        data-live-search="true">
+                                        {% for customer in customers %}
+                                        <option value="{{ customer.id }}">{{ customer.first_name }} {{
+                                            customer.last_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <small class="text-muted mt-2 d-block">
+                                    <i class="fas fa-info-circle"></i> Search by name or select multiple students (max:
+                                    <span class="text-primary" id="max-students-display">15</span>)
+                                </small>
+                            </div>
+                        </div>
+
                         <!-- Schedule Section -->
                         <div class="section mb-4">
                             <h5 class="mb-3">
@@ -155,6 +182,61 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+    $(document).ready(function () {
+        console.log('Document ready');
+
+        // Initialize Select2 for students
+        var $studentsSelect = $('#students');
+        var $maxStudentsInput = $('#max_students');
+        console.log('Students select element:', $studentsSelect.length ? 'found' : 'not found');
+        console.log('Students select options:', $studentsSelect.find('option').length);
+
+        if ($studentsSelect.length) {
+            try {
+                $studentsSelect.select2({
+                    placeholder: 'Search and select students...',
+                    width: '100%',
+                    allowClear: true,
+                    theme: 'bootstrap-5',
+                    debug: true  // Enable Select2 debug mode
+                });
+                console.log('Select2 initialized successfully');
+
+                // Add validation for max students
+                $studentsSelect.on('select2:selecting', function (e) {
+                    var maxStudents = parseInt($maxStudentsInput.val());
+                    var currentSelected = $(this).val() ? $(this).val().length : 0;
+
+                    if (currentSelected >= maxStudents) {
+                        e.preventDefault();
+                        alert('Cannot add more students. Maximum limit reached: ' + maxStudents);
+                    }
+                });
+
+                // Update validation when max_students changes
+                $maxStudentsInput.on('change', function () {
+                    var maxStudents = parseInt($(this).val());
+                    var currentSelected = $studentsSelect.val() ? $studentsSelect.val().length : 0;
+
+                    if (currentSelected > maxStudents) {
+                        alert('Please remove ' + (currentSelected - maxStudents) + ' student(s) to match the new maximum limit.');
+                        $(this).val(currentSelected);
+                        $('#max-students-display').text(currentSelected);
+                    } else {
+                        $('#max-students-display').text(maxStudents);
+                    }
+                });
+            } catch (error) {
+                console.error('Error initializing Select2:', error);
+            }
+        } else {
+            console.error('Students select element not found');
+        }
+    });
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -420,6 +502,7 @@
         addScheduleRow();
     });
 </script>
+{% endblock %}
 
 <style>
     /* Form styles */
@@ -486,5 +569,25 @@
             min-width: 60px;
         }
     }
+
+    /* Select2 customization */
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 100px;
+    }
+
+    .select2-container--bootstrap-5 .select2-search__field {
+        width: 100% !important;
+    }
 </style>
+
+<script>
+    // Update max students display when value changes
+    document.getElementById('max_students').addEventListener('change', function () {
+        document.getElementById('max-students-display').textContent = this.value;
+    });
+</script>
 {% endblock %}
