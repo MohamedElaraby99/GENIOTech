@@ -2,6 +2,138 @@
 
 {% block title %}{{ customer.first_name }} {{ customer.last_name }} - Customer Details{% endblock %}
 
+{% block styles %}
+<style>
+    /* Timeline Styles */
+    .timeline {
+        position: relative;
+        padding-left: 0;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 20px;
+        height: 100%;
+        width: 2px;
+        background: #dee2e6;
+    }
+
+    .timeline-item {
+        position: relative;
+        padding-bottom: 2rem;
+        padding-left: 50px;
+    }
+
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+
+    .timeline-marker {
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        border: 3px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .timeline-content {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .timeline-content::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 15px;
+        width: 0;
+        height: 0;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid #dee2e6;
+    }
+
+    .timeline-content::after {
+        content: '';
+        position: absolute;
+        left: -7px;
+        top: 15px;
+        width: 0;
+        height: 0;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid #f8f9fa;
+    }
+
+    /* Group item hover effects */
+    .group-item {
+        transition: all 0.2s ease;
+    }
+
+    .group-item:hover {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 12px !important;
+        margin: 8px 0 !important;
+    }
+
+    /* Tab customization */
+    .nav-tabs .nav-link {
+        border: none;
+        border-bottom: 2px solid transparent;
+        background: none;
+        color: #6c757d;
+    }
+
+    .nav-tabs .nav-link.active {
+        border-bottom-color: #0d6efd;
+        color: #0d6efd;
+        background: none;
+    }
+
+    .nav-tabs .nav-link:hover {
+        border-bottom-color: #0d6efd;
+        color: #0d6efd;
+    }
+
+    /* Responsive timeline */
+    @media (max-width: 768px) {
+        .timeline-item {
+            padding-left: 40px;
+        }
+
+        .timeline::before {
+            left: 15px;
+        }
+
+        .timeline-marker {
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+        }
+
+        .timeline-content::before,
+        .timeline-content::after {
+            left: -6px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -82,37 +214,194 @@
         <!-- Left Column -->
         <div class="col-md-8">
             <!-- Recent Notes -->
-            <!-- Groups -->
+            <!-- Groups History -->
             <div class="card shadow mb-4">
                 <div class="card-header">
-                    <h5 class="card-title mb-0"><i class="fas fa-users"></i> Groups</h5>
+                    <ul class="nav nav-tabs card-header-tabs" id="groupTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="active-groups-tab" data-bs-toggle="tab"
+                                data-bs-target="#active-groups" type="button" role="tab">
+                                <i class="fas fa-users"></i> Active Groups
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="group-history-tab" data-bs-toggle="tab"
+                                data-bs-target="#group-history" type="button" role="tab">
+                                <i class="fas fa-history"></i> Group History
+                            </button>
+                        </li>
+                    </ul>
                 </div>
                 <div class="card-body">
-                    {% if customer.group_memberships %}
-                    {% for membership in customer.group_memberships %}
-                    <div class="group-item border-bottom pb-2 mb-2">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">{{ membership.group.name }}</h6>
-                                <small class="text-muted">Joined: {{ membership.joined_date.strftime('%Y-%m-%d')
-                                    }}</small>
+                    <div class="tab-content" id="groupTabsContent">
+                        <!-- Active Groups Tab -->
+                        <div class="tab-pane fade show active" id="active-groups" role="tabpanel">
+                            {% set active_memberships = customer.group_memberships|selectattr("status", "equalto",
+                            "active")|list %}
+                            {% if active_memberships %}
+                            {% for membership in active_memberships %}
+                            <div class="group-item border-bottom pb-3 mb-3">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="d-flex align-items-start">
+                                            <div class="me-3">
+                                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center"
+                                                    style="width: 40px; height: 40px; font-size: 14px;">
+                                                    <i class="fas fa-users"></i>
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">
+                                                    <a href="{{ url_for('group_detail', group_id=membership.group.id) }}"
+                                                        class="text-decoration-none">
+                                                        {{ membership.group.name }}
+                                                    </a>
+                                                </h6>
+                                                <p class="mb-1 text-muted small">{{ membership.group.subject }}</p>
+                                                <div class="d-flex gap-3">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar-plus"></i>
+                                                        Joined: {{ membership.joined_date.strftime('%Y-%m-%d') }}
+                                                    </small>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-chalkboard-teacher"></i>
+                                                        {{ membership.group.instructor.first_name }} {{
+                                                        membership.group.instructor.last_name }}
+                                                    </small>
+                                                </div>
+                                                {% if membership.group.start_date %}
+                                                <div class="mt-1">
+                                                    <small class="text-info">
+                                                        <i class="fas fa-play-circle"></i>
+                                                        Started: {{ membership.group.start_date.strftime('%Y-%m-%d') }}
+                                                    </small>
+                                                    {% if membership.group.end_date %}
+                                                    <small class="text-warning ms-2">
+                                                        <i class="fas fa-stop-circle"></i>
+                                                        Ends: {{ membership.group.end_date.strftime('%Y-%m-%d') }}
+                                                    </small>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 text-md-end">
+                                        <span class="badge bg-success mb-2">{{ membership.status.replace('_', '
+                                            ').title() }}</span>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-users"></i>
+                                            {{ membership.group.members|selectattr("status", "equalto",
+                                            "active")|list|length }}/{{ membership.group.max_students }} students
+                                        </small>
+                                    </div>
+                                </div>
+                                {% if membership.notes %}
+                                <div class="mt-2 p-2 bg-light rounded">
+                                    <small class="text-muted">
+                                        <i class="fas fa-sticky-note"></i> Note: {{ membership.notes }}
+                                    </small>
+                                </div>
+                                {% endif %}
                             </div>
-                            <span
-                                class="badge bg-{{ 'success' if membership.status == 'active' else 'warning' if membership.status == 'inactive' else 'primary' if membership.status == 'completed' else 'secondary' }}">
-                                {{ membership.status.replace('_', ' ').title() }}
-                            </span>
+                            {% endfor %}
+                            {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-users fa-3x mb-3"></i>
+                                <h6>No Active Groups</h6>
+                                <p class="mb-0">This customer is not currently enrolled in any groups.</p>
+                            </div>
+                            {% endif %}
                         </div>
-                        {% if membership.group.subject %}
-                        <p class="mb-0 mt-1 text-muted small">{{ membership.group.subject }}</p>
-                        {% endif %}
+
+                        <!-- Group History Tab -->
+                        <div class="tab-pane fade" id="group-history" role="tabpanel">
+                            {% if customer.group_memberships %}
+                            <div class="timeline">
+                                {% for membership in customer.group_memberships|sort(attribute="joined_date",
+                                reverse=true) %}
+                                <div class="timeline-item">
+                                    <div
+                                        class="timeline-marker bg-{{ 'success' if membership.status == 'active' else 'warning' if membership.status == 'inactive' else 'primary' if membership.status == 'completed' else 'secondary' }}">
+                                        <i
+                                            class="fas fa-{{ 'play' if membership.status == 'active' else 'pause' if membership.status == 'inactive' else 'check' if membership.status == 'completed' else 'stop' }}"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h6 class="mb-1">
+                                                <a href="{{ url_for('group_detail', group_id=membership.group.id) }}"
+                                                    class="text-decoration-none">
+                                                    {{ membership.group.name }}
+                                                </a>
+                                            </h6>
+                                            <span
+                                                class="badge bg-{{ 'success' if membership.status == 'active' else 'warning' if membership.status == 'inactive' else 'primary' if membership.status == 'completed' else 'secondary' }}">
+                                                {{ membership.status.replace('_', ' ').title() }}
+                                            </span>
+                                        </div>
+
+                                        <p class="mb-2 text-muted">{{ membership.group.subject }}</p>
+
+                                        <div class="row text-small">
+                                            <div class="col-md-6">
+                                                <div class="mb-1">
+                                                    <i class="fas fa-calendar-plus text-primary"></i>
+                                                    <strong>Joined:</strong> {{ membership.joined_date.strftime('%B %d,
+                                                    %Y') }}
+                                                </div>
+                                                <div class="mb-1">
+                                                    <i class="fas fa-chalkboard-teacher text-info"></i>
+                                                    <strong>Instructor:</strong> {{
+                                                    membership.group.instructor.first_name }} {{
+                                                    membership.group.instructor.last_name }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                {% if membership.group.start_date %}
+                                                <div class="mb-1">
+                                                    <i class="fas fa-play-circle text-success"></i>
+                                                    <strong>Group Started:</strong> {{
+                                                    membership.group.start_date.strftime('%B %d, %Y') }}
+                                                </div>
+                                                {% endif %}
+                                                {% if membership.group.end_date %}
+                                                <div class="mb-1">
+                                                    <i class="fas fa-stop-circle text-warning"></i>
+                                                    <strong>Group Ends:</strong> {{
+                                                    membership.group.end_date.strftime('%B %d, %Y') }}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+
+                                        {% if membership.notes %}
+                                        <div class="mt-2 p-2 bg-light rounded">
+                                            <small>
+                                                <i class="fas fa-sticky-note text-warning"></i>
+                                                <strong>Notes:</strong> {{ membership.notes }}
+                                            </small>
+                                        </div>
+                                        {% endif %}
+
+                                        <small class="text-muted mt-2 d-block">
+                                            <i class="fas fa-clock"></i>
+                                            Duration: {{ membership.joined_date.strftime('%b %Y') }}
+                                            {% if membership.status != 'active' %} - Present{% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-history fa-3x mb-3"></i>
+                                <h6>No Group History</h6>
+                                <p class="mb-0">This customer has not joined any groups yet.</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% endfor %}
-                    {% else %}
-                    <div class="text-center text-muted py-3">
-                        <i class="fas fa-users fa-2x mb-2"></i>
-                        <p class="mb-0">No groups joined</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 

@@ -101,8 +101,10 @@
                             <li><strong>last_name</strong> - اسم العائلة (مطلوب)</li>
                             <li><strong>phone</strong> - رقم الهاتف الأول (اختياري)</li>
                             <li><strong>phone2</strong> - رقم الهاتف الثاني (اختياري)</li>
+                            <li><strong>age</strong> - العمر (اختياري)</li>
                             <li><strong>status</strong> - الحالة (اختياري)</li>
                             <li><strong>assigned_instructor_email</strong> - بريد المدرب (اختياري)</li>
+                            <li><strong>group_names</strong> - أسماء المجموعات مفصولة بفاصلة (اختياري)</li>
                             <li><strong>initial_notes</strong> - ملاحظات أولية (اختياري)</li>
                         </ul>
                     </div>
@@ -115,6 +117,17 @@
                             <span class="badge bg-warning me-1">needs_follow_up</span>
                             <span class="badge bg-danger">no_show</span>
                         </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <h6><i class="fas fa-users"></i> إضافة العملاء للمجموعات:</h6>
+                        <ul class="small mb-0">
+                            <li>استخدم عمود <strong>group_names</strong> لإضافة العملاء للمجموعات تلقائياً</li>
+                            <li>اكتب أسماء المجموعات مفصولة بفاصلة: <code>Group 1, Group 2</code></li>
+                            <li>يجب أن تكون أسماء المجموعات مطابقة تماماً لأسماء المجموعات الموجودة</li>
+                            <li>سيتم تجاهل المجموعات غير الموجودة أو الممتلئة مع رسالة تحذيرية</li>
+                            <li>إذا كان العميل مسجلاً مسبقاً في المجموعة، سيتم تجاهل التسجيل المكرر</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -139,8 +152,10 @@
                                     <th>last_name</th>
                                     <th>phone</th>
                                     <th>phone2</th>
+                                    <th>age</th>
                                     <th>status</th>
                                     <th>assigned_instructor_email</th>
+                                    <th>group_names</th>
                                     <th>initial_notes</th>
                                 </tr>
                             </thead>
@@ -150,8 +165,10 @@
                                     <td>أحمد</td>
                                     <td>+966501234567</td>
                                     <td>+966501234568</td>
+                                    <td>25</td>
                                     <td>active</td>
                                     <td>instructor@example.com</td>
+                                    <td>Python Programming, Web Development</td>
                                     <td>عميل مهتم بدورات البرمجة</td>
                                 </tr>
                                 <tr>
@@ -159,8 +176,10 @@
                                     <td>سالم</td>
                                     <td>+966507654321</td>
                                     <td></td>
+                                    <td>30</td>
                                     <td>active</td>
                                     <td></td>
+                                    <td>Data Science</td>
                                     <td>ملاحظات أولية للعميل</td>
                                 </tr>
                                 <tr>
@@ -168,8 +187,10 @@
                                     <td>محمود</td>
                                     <td>+966509876543</td>
                                     <td>+966509876544</td>
+                                    <td>22</td>
                                     <td>needs_follow_up</td>
                                     <td>instructor@example.com</td>
+                                    <td></td>
                                     <td>يحتاج متابعة خاصة</td>
                                 </tr>
                             </tbody>

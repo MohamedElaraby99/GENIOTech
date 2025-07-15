@@ -1287,6 +1287,7 @@ def download_customer_template():
             'age': 25,
             'status': 'active',
             'assigned_instructor_email': 'instructor@example.com',
+            'group_names': 'Python Programming, Web Development',
             'initial_notes': 'ملاحظات أولية للعميل'
         },
         {
@@ -1297,6 +1298,7 @@ def download_customer_template():
             'age': 30,
             'status': 'active',
             'assigned_instructor_email': '',
+            'group_names': 'Data Science',
             'initial_notes': 'عميل مهتم بدورات البرمجة'
         },
         {
@@ -1307,6 +1309,7 @@ def download_customer_template():
             'age': 22,
             'status': 'needs_follow_up',
             'assigned_instructor_email': 'instructor@example.com',
+            'group_names': '',
             'initial_notes': 'يحتاج متابعة خاصة'
         }
     ]
@@ -1365,16 +1368,22 @@ def download_customer_template():
             'Example': 'أحمد'
         },
         {
-            'Column Name': 'email',
-            'Required': 'Yes',
-            'Description': 'البريد الإلكتروني (يجب أن يكون فريد)',
-            'Example': 'mohammed@example.com'
-        },
-        {
             'Column Name': 'phone',
             'Required': 'No',
-            'Description': 'رقم الهاتف (مع رمز الدولة)',
+            'Description': 'رقم الهاتف الأول (مع رمز الدولة)',
             'Example': '+966501234567'
+        },
+        {
+            'Column Name': 'phone2',
+            'Required': 'No',
+            'Description': 'رقم الهاتف الثاني (مع رمز الدولة)',
+            'Example': '+966501234568'
+        },
+        {
+            'Column Name': 'age',
+            'Required': 'No',
+            'Description': 'عمر العميل (رقم صحيح)',
+            'Example': '25'
         },
         {
             'Column Name': 'status',
@@ -1387,6 +1396,12 @@ def download_customer_template():
             'Required': 'No',
             'Description': 'البريد الإلكتروني للمدرب المسؤول (اختياري)',
             'Example': 'instructor@example.com'
+        },
+        {
+            'Column Name': 'group_names',
+            'Required': 'No',
+            'Description': 'أسماء المجموعات المراد إضافة العميل إليها (مفصولة بفاصلة)',
+            'Example': 'Python Programming, Web Development'
         },
         {
             'Column Name': 'initial_notes',
@@ -1557,6 +1572,63 @@ def import_customers():
                 # Assign instructor if found
                 if assigned_instructor:
                     customer.assigned_instructors.append(assigned_instructor)
+                
+                # Handle group assignments
+                group_names = row.get('group_names', '')
+                if not is_empty_value(group_names):
+                    # Split group names by comma and process each one
+                    group_name_list = [name.strip() for name in str(group_names).split(',') if name.strip()]
+                    
+                    for group_name in group_name_list:
+                        # Find group by name
+                        group = Group.query.filter_by(name=group_name, status='active').first()
+                        if group:
+                            # Check if customer is already in this group
+                            existing_membership = GroupMember.query.filter_by(
+                                group_id=group.id,
+                                customer_id=customer.id,
+                                status='active'
+                            ).first()
+                            
+                            if not existing_membership:
+                                # Check group capacity
+                                current_members = GroupMember.query.filter_by(
+                                    group_id=group.id, 
+                                    status='active'
+                                ).count()
+                                
+                                if current_members < group.max_students:
+                                    # Add customer to group
+                                    group_member = GroupMember(
+                                        group_id=group.id,
+                                        customer_id=customer.id,
+                                        status='active',
+                                        notes=f'Added via bulk import on {datetime.now().strftime("%Y-%m-%d")}'
+                                    )
+                                    db.session.add(group_member)
+                                    
+                                    # Log this activity
+                                    log_customer_event(
+                                        customer_id=customer.id,
+                                        event_type='group_joined',
+                                        description=f'Enrolled in group: {group.name} via import',
+                                        event_data={'group_id': group.id, 'group_name': group.name},
+                                        created_by_id=current_user.id
+                                    )
+                                    
+                                    log_group_event(
+                                        group_id=group.id,
+                                        event_type='member_added',
+                                        description=f'Student {customer.first_name} {customer.last_name} enrolled via import',
+                                        event_data={'customer_id': customer.id},
+                                        created_by_id=current_user.id
+                                    )
+                                else:
+                                    error_messages.append(f'الصف {index + 2}: المجموعة "{group_name}" ممتلئة (وصلت للحد الأقصى)')
+                            else:
+                                error_messages.append(f'الصف {index + 2}: العميل مسجل مسبقاً في المجموعة "{group_name}"')
+                        else:
+                            error_messages.append(f'الصف {index + 2}: المجموعة "{group_name}" غير موجودة أو غير نشطة')
                 
                 imported_count += 1
                 

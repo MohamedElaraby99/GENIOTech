@@ -319,12 +319,21 @@
             return true;
         }
 
-        // Add schedule row function
+        // Add schedule row function with debouncing
+        let isAddingSchedule = false;
         function addScheduleRow(preset = null) {
-            scheduleCount++;
+            if (isAddingSchedule) {
+                console.log('Already adding schedule, skipping...');
+                return;
+            }
+
+            isAddingSchedule = true;
+            console.log('Adding new schedule row...');
+
             const container = document.getElementById('schedules-container');
             const newScheduleRow = document.createElement('div');
             newScheduleRow.className = 'schedule-row mb-4 p-3 border rounded bg-light position-relative';
+            newScheduleRow.setAttribute('data-schedule-id', Date.now()); // Add unique identifier
 
             const dayOptions = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
             const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -417,7 +426,7 @@
                             <input type="text" name="locations[]" class="form-control"
                                 placeholder="Room/Location">
                             <button type="button" class="btn btn-danger remove-schedule"
-                                style="display: none;" title="Remove this time slot">
+                                title="Remove this time slot">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -438,46 +447,76 @@
             updateHiddenTimeFields(newScheduleRow);
             updateRemoveButtons();
             validateTimes(newScheduleRow);
+
+            // Reset the flag after a short delay
+            setTimeout(() => {
+                isAddingSchedule = false;
+                console.log('Schedule adding flag reset');
+            }, 100);
         }
 
         // Quick schedule templates
         document.querySelectorAll('.quick-schedule-btn').forEach(button => {
-            button.addEventListener('click', function () {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
                 const scheduleData = JSON.parse(this.getAttribute('data-schedule'));
                 const container = document.getElementById('schedules-container');
                 container.innerHTML = '';
-                scheduleCount = 0;
+                isAddingSchedule = false; // Reset flag before adding multiple
                 scheduleData.forEach(schedule => addScheduleRow(schedule));
+                updateRemoveButtons();
             });
         });
 
         // Clear schedule button
-        document.getElementById('clear-schedule').addEventListener('click', function () {
+        document.getElementById('clear-schedule').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             const container = document.getElementById('schedules-container');
             container.innerHTML = '';
-            scheduleCount = 0;
+            isAddingSchedule = false; // Reset flag
             addScheduleRow();
+            updateRemoveButtons();
         });
 
-        // Add new schedule button
-        document.getElementById('add-schedule').addEventListener('click', function () {
-            addScheduleRow();
-        });
+        // Add new schedule button (remove any existing listeners first)
+        const addScheduleBtn = document.getElementById('add-schedule');
+        if (addScheduleBtn) {
+            // Clone the button to remove all event listeners
+            const newBtn = addScheduleBtn.cloneNode(true);
+            addScheduleBtn.parentNode.replaceChild(newBtn, addScheduleBtn);
 
-        // Remove schedule functionality
-        document.addEventListener('click', function (e) {
-            if (e.target.classList.contains('remove-schedule') || e.target.parentElement.classList.contains('remove-schedule')) {
-                const scheduleRow = e.target.closest('.schedule-row');
-                scheduleRow.remove();
-                scheduleCount--;
+            // Add single event listener
+            newBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Adding schedule row...');
+                addScheduleRow();
                 updateRemoveButtons();
+            });
+        }
+
+        // Remove schedule functionality - use event delegation
+        document.getElementById('schedules-container').addEventListener('click', function (e) {
+            if (e.target.closest('.remove-schedule')) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const scheduleRow = e.target.closest('.schedule-row');
+                if (scheduleRow) {
+                    scheduleRow.remove();
+                    updateRemoveButtons();
+                }
             }
         });
 
         function updateRemoveButtons() {
+            const scheduleRows = document.querySelectorAll('.schedule-row');
             const removeButtons = document.querySelectorAll('.remove-schedule');
+
             removeButtons.forEach(button => {
-                button.style.display = scheduleCount > 1 ? 'block' : 'none';
+                button.style.display = scheduleRows.length > 1 ? 'inline-block' : 'none';
             });
         }
 
@@ -499,7 +538,10 @@
         });
 
         // Initialize with one empty schedule row
-        addScheduleRow();
+        if (document.querySelectorAll('.schedule-row').length === 0) {
+            addScheduleRow();
+        }
+        updateRemoveButtons();
     });
 </script>
 {% endblock %}
